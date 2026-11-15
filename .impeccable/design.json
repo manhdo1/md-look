@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T23:59:00+07:00",
+  "title": "Design System: markdown-look",
+  "extensions": {
+    "colorMeta": {
+      "signal-vermilion": { "role": "primary", "displayName": "Signal Vermilion", "canonical": "oklch(58% 0.2 31)", "cssVar": "--line", "dark": "oklch(68% 0.17 33)", "tonalRamp": ["oklch(15% 0.06 31)", "oklch(25% 0.1 31)", "oklch(35% 0.14 31)", "oklch(45% 0.18 31)", "oklch(58% 0.2 31)", "oklch(68% 0.16 31)", "oklch(82% 0.09 31)", "oklch(95% 0.025 31)"] },
+      "vermilion-ink": { "role": "primary", "displayName": "Vermilion Ink", "canonical": "oklch(52% 0.19 30)", "cssVar": "--line-ink", "dark": "oklch(74% 0.14 36)", "tonalRamp": ["oklch(15% 0.06 30)", "oklch(25% 0.1 30)", "oklch(35% 0.14 30)", "oklch(45% 0.17 30)", "oklch(52% 0.19 30)", "oklch(65% 0.16 30)", "oklch(80% 0.09 30)", "oklch(95% 0.025 30)"] },
+      "idle-track": { "role": "neutral", "displayName": "Idle Track", "canonical": "oklch(72% 0.012 258)", "cssVar": "--line-idle", "dark": "oklch(42% 0.014 258)", "tonalRamp": ["oklch(15% 0.012 258)", "oklch(25% 0.012 258)", "oklch(35% 0.012 258)", "oklch(45% 0.012 258)", "oklch(55% 0.012 258)", "oklch(72% 0.012 258)", "oklch(85% 0.008 258)", "oklch(95% 0.004 258)"] },
+      "route-blue": { "role": "secondary", "displayName": "Route Blue", "canonical": "oklch(47% 0.15 256)", "cssVar": "--link", "dark": "oklch(77% 0.11 248)", "tonalRamp": ["oklch(15% 0.05 256)", "oklch(25% 0.09 256)", "oklch(35% 0.12 256)", "oklch(47% 0.15 256)", "oklch(57% 0.14 256)", "oklch(67% 0.12 256)", "oklch(80% 0.08 256)", "oklch(95% 0.025 256)"] },
+      "platform-ground": { "role": "neutral", "displayName": "Platform Ground", "canonical": "oklch(97.4% 0.004 255)", "cssVar": "--ground", "dark": "oklch(18.6% 0.012 258)", "tonalRamp": ["oklch(15% 0.008 255)", "oklch(25% 0.008 255)", "oklch(35% 0.007 255)", "oklch(45% 0.006 255)", "oklch(60% 0.006 255)", "oklch(75% 0.005 255)", "oklch(88% 0.004 255)", "oklch(97.4% 0.004 255)"] },
+      "page-surface": { "role": "neutral", "displayName": "Page Surface", "canonical": "oklch(99.6% 0.002 255)", "cssVar": "--surface", "dark": "oklch(20.8% 0.012 258)" },
+      "raised-white": { "role": "neutral", "displayName": "Raised White", "canonical": "oklch(100% 0 0)", "cssVar": "--raised", "dark": "oklch(24.5% 0.014 258)" },
+      "hover-wash": { "role": "neutral", "displayName": "Hover Wash", "canonical": "oklch(94.6% 0.006 258)", "cssVar": "--hover", "dark": "oklch(26.5% 0.013 258)" },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(91.5% 0.006 258)", "cssVar": "--rule", "dark": "oklch(29% 0.012 258)" },
+      "rule-strong": { "role": "neutral", "displayName": "Strong Rule", "canonical": "oklch(84% 0.01 258)", "cssVar": "--rule-strong", "dark": "oklch(37% 0.014 258)" },
+      "faint-ink": { "role": "neutral", "displayName": "Faint Ink", "canonical": "oklch(63% 0.014 258)", "cssVar": "--faint", "dark": "oklch(58% 0.012 256)" },
+      "muted-ink": { "role": "neutral", "displayName": "Muted Ink", "canonical": "oklch(49% 0.018 258)", "cssVar": "--muted", "dark": "oklch(70% 0.012 256)" },
+      "ink": { "role": "neutral", "displayName": "Blue-Black Ink", "canonical": "oklch(25% 0.02 260)", "cssVar": "--ink", "dark": "oklch(87% 0.01 255)", "tonalRamp": ["oklch(15% 0.022 260)", "oklch(25% 0.02 260)", "oklch(35% 0.02 260)", "oklch(45% 0.018 260)", "oklch(55% 0.016 260)", "oklch(67% 0.014 260)", "oklch(82% 0.01 260)", "oklch(95% 0.005 260)"] },
+      "ink-strong": { "role": "neutral", "displayName": "Ink Strong", "canonical": "oklch(17% 0.025 262)", "cssVar": "--ink-strong", "dark": "oklch(96% 0.006 255)" },
+      "code-ground": { "role": "neutral", "displayName": "Code Ground", "canonical": "oklch(97.2% 0.004 258)", "cssVar": "--code-bg", "dark": "oklch(17.2% 0.012 258)" },
+      "code-head": { "role": "neutral", "displayName": "Code Head", "canonical": "oklch(95.2% 0.005 258)", "cssVar": "--code-head", "dark": "oklch(22.4% 0.013 258)" },
+      "inline-code-ground": { "role": "neutral", "displayName": "Inline Code Ground", "canonical": "oklch(95.4% 0.006 258)", "cssVar": "--inline-code-bg", "dark": "oklch(26.5% 0.014 258)" },
+      "inline-code-ink": { "role": "tertiary", "displayName": "Literal Violet", "canonical": "oklch(36% 0.06 290)", "cssVar": "--inline-code-fg", "dark": "oklch(83% 0.07 300)" },
+      "diagram-ground": { "role": "neutral", "displayName": "Map Ground", "canonical": "oklch(98.6% 0.003 258)", "cssVar": "--dg-ground", "dark": "oklch(19.4% 0.012 258)" },
+      "diagram-dot": { "role": "neutral", "displayName": "Map Dot", "canonical": "oklch(88% 0.008 258)", "cssVar": "--dg-dot", "dark": "oklch(30% 0.012 258)" },
+      "mark-yellow": { "role": "tertiary", "displayName": "Marker Yellow", "canonical": "oklch(93% 0.09 95)", "cssVar": "--mark-bg", "dark": "oklch(42% 0.08 90)" },
+      "find-yellow": { "role": "tertiary", "displayName": "Find Yellow", "canonical": "oklch(91% 0.12 95)", "cssVar": "--find-bg", "dark": "oklch(45% 0.09 85)" },
+      "find-current-amber": { "role": "tertiary", "displayName": "Current Match Amber", "canonical": "oklch(78% 0.17 70)", "cssVar": "--find-current-bg", "dark": "oklch(72% 0.16 70)" },
+      "error-ground": { "role": "neutral", "displayName": "Error Ground", "canonical": "oklch(95.5% 0.03 25)", "cssVar": "--error-bg", "dark": "oklch(30% 0.07 25)" },
+      "error-ink": { "role": "neutral", "displayName": "Error Ink", "canonical": "oklch(42% 0.15 27)", "cssVar": "--error-fg", "dark": "oklch(87% 0.06 25)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Document h1 (1.9em under 760px); empty-state title at 26px." },
+      "headline": { "displayName": "Headline", "purpose": "h2 section openers on a hairline with a vermilion station ring." },
+      "title": { "displayName": "Title", "purpose": "h3; h4 at 1.06em, h5/h6 at 1em." },
+      "body": { "displayName": "Body", "purpose": "Reading prose at 16px x zoom on a 46rem measure." },
+      "ui": { "displayName": "UI", "purpose": "Window chrome base size." },
+      "label": { "displayName": "Label", "purpose": "Outline heading, code language, Recent heading, status bar. Sentence case, no tracking." },
+      "mono": { "displayName": "Mono", "purpose": "Code only, ligatures off; 0.86em inline." }
+    },
+    "shadows": [
+      { "name": "floating", "value": "0 1px 2px oklch(20% 0.02 260 / 0.06), 0 6px 20px oklch(20% 0.02 260 / 0.1)", "dark": "0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35)", "purpose": "Find bar, fullscreen diagram dialog, clipped-diagram pill, narrow-window outline overlay." },
+      { "name": "tab-lift", "value": "0 1px 2px oklch(20% 0.02 260 / 0.12)", "purpose": "Selected segment of the Diagram/Source toggle only." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Station ring growth, find drop-in, dialog scale-in, diagram zoom, primary press." },
+      { "name": "state-fast", "value": "120ms", "purpose": "Hover color/background, resizer rule, progress width (linear)." },
+      { "name": "station", "value": "160ms", "purpose": "Outline station ring size and color." },
+      { "name": "drop-in", "value": "180ms", "purpose": "Find bar enters 6px from above." },
+      { "name": "dialog-in", "value": "220ms", "purpose": "Fullscreen diagram scales from 0.98." },
+      { "name": "diagram-zoom", "value": "260ms", "purpose": "Programmatic pan/zoom transform." },
+      { "name": "reduced-motion", "value": "none", "purpose": "All animation and transition disabled under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "narrow", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single solid action, used on the empty state to open a file.",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\" d=\"M1.75 4.25c0-.83.67-1.5 1.5-1.5h3l1.5 1.75h5c.83 0 1.5.67 1.5 1.5v6.25c0 .83-.67 1.5-1.5 1.5h-9.5c-.83 0-1.5-.67-1.5-1.5v-8z\"/></svg>Open file</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px 0 15px; border: none; border-radius: 9px; background: var(--ink-strong, oklch(17% 0.025 262)); color: var(--surface, oklch(99.6% 0.002 255)); font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 140ms, transform 140ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: var(--line-ink, oklch(52% 0.19 30)); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--focus, oklch(58% 0.2 31)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "30px quiet chrome button for title bar, find, and toolbars.",
+      "html": "<button class=\"ds-icon-btn\" aria-label=\"Find\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"4.75\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" d=\"M10.5 10.5l3.5 3.5\"/></svg></button>",
+      "css": ".ds-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: none; border-radius: 7px; background: transparent; color: var(--muted, oklch(49% 0.018 258)); cursor: pointer; transition: background-color 120ms, color 120ms; } .ds-icon-btn:hover { background: var(--hover, oklch(94.6% 0.006 258)); color: var(--ink-strong, oklch(17% 0.025 262)); } .ds-icon-btn:focus-visible { outline: 2px solid var(--focus, oklch(58% 0.2 31)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "text-button",
+      "description": "Small labelled action in block heads (Copy); turns vermilion-ink when done.",
+      "html": "<button class=\"ds-text-btn\"><svg viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" aria-hidden=\"true\"><rect x=\"5.25\" y=\"5.25\" width=\"8\" height=\"8\" rx=\"1.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" d=\"M10.75 3.25v-.5c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h.5\"/></svg>Copy</button>",
+      "css": ".ds-text-btn { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border: none; border-radius: 6px; background: transparent; color: var(--muted, oklch(49% 0.018 258)); font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color 120ms, color 120ms; } .ds-text-btn:hover { background: var(--hover, oklch(94.6% 0.006 258)); color: var(--ink-strong, oklch(17% 0.025 262)); } .ds-text-btn:focus-visible { outline: 2px solid var(--focus, oklch(58% 0.2 31)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Find Bar",
+      "kind": "input",
+      "refersTo": "find-bar",
+      "description": "Floating search capsule with vermilion caret and tabular match count.",
+      "html": "<div class=\"ds-find\" role=\"search\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"4.75\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" d=\"M10.5 10.5l3.5 3.5\"/></svg><input class=\"ds-find-input\" type=\"search\" placeholder=\"Find in document\" aria-label=\"Find in document\"><span class=\"ds-find-count\">3 / 12</span></div>",
+      "css": ".ds-find { display: flex; align-items: center; gap: 2px; width: 380px; padding: 4px 4px 4px 10px; background: var(--raised, oklch(100% 0 0)); border: 1px solid var(--rule-strong, oklch(84% 0.01 258)); border-radius: 10px; box-shadow: 0 1px 2px oklch(20% 0.02 260 / 0.06), 0 6px 20px oklch(20% 0.02 260 / 0.1); color: var(--faint, oklch(63% 0.014 258)); } .ds-find-input { flex: 1; min-width: 0; height: 30px; padding: 0 6px; border: none; background: transparent; color: var(--ink-strong, oklch(17% 0.025 262)); font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 13.5px; outline: none; caret-color: var(--line, oklch(58% 0.2 31)); } .ds-find-input::placeholder { color: var(--faint, oklch(63% 0.014 258)); } .ds-find-count { padding: 0 6px; color: var(--muted, oklch(49% 0.018 258)); font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 12px; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Outline Line Diagram",
+      "kind": "nav",
+      "refersTo": "outline-station",
+      "description": "Signature outline: a 3px transit track with ring stations; passed segments fill vermilion, the current station grows.",
+      "html": "<ol class=\"ds-line\"><li class=\"ds-passed\"><a class=\"ds-d0\">Kiến trúc</a></li><li class=\"ds-current\"><a class=\"ds-d1\">Luồng dữ liệu</a></li><li><a class=\"ds-d2\">IPC</a></li><li><a class=\"ds-d1\">Bảo mật</a></li></ol>",
+      "css": ".ds-line { list-style: none; margin: 0; padding: 0; width: 248px; font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 13px; background: var(--surface, oklch(99.6% 0.002 255)); } .ds-line li { position: relative; } .ds-line li::before { content: ''; position: absolute; left: 20.5px; top: 0; bottom: 0; width: 3px; background: var(--line-idle, oklch(72% 0.012 258)); } .ds-line li:first-child::before { top: 50%; } .ds-line li:last-child::before { bottom: 50%; } .ds-line li.ds-passed::before { background: var(--line, oklch(58% 0.2 31)); } .ds-line li.ds-current::before { background: linear-gradient(var(--line, oklch(58% 0.2 31)) 50%, var(--line-idle, oklch(72% 0.012 258)) 50%); } .ds-line a { position: relative; display: block; min-height: 30px; padding: 6px 16px 6px 40px; color: var(--muted, oklch(49% 0.018 258)); line-height: 1.4; cursor: pointer; transition: color 120ms, background-color 120ms; } .ds-line a:hover { background: var(--hover, oklch(94.6% 0.006 258)); color: var(--ink-strong, oklch(17% 0.025 262)); } .ds-line a::before { content: ''; position: absolute; left: 22px; top: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--surface, oklch(99.6% 0.002 255)); border: 2px solid var(--line-idle, oklch(72% 0.012 258)); transform: translate(-50%, -50%); transition: width 160ms cubic-bezier(0.16, 1, 0.3, 1), height 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms; } .ds-line a.ds-d0 { font-weight: 600; color: var(--ink, oklch(25% 0.02 260)); } .ds-line a.ds-d0::before { width: 11px; height: 11px; border-width: 2.5px; } .ds-line a.ds-d2 { padding-left: 52px; font-size: 12.5px; } .ds-line a.ds-d2::before { width: 3px; height: 3px; border-width: 0; background: var(--faint, oklch(63% 0.014 258)); } .ds-line li.ds-passed a::before { border-color: var(--line, oklch(58% 0.2 31)); } .ds-line li.ds-current a { color: var(--ink-strong, oklch(17% 0.025 262)); font-weight: 600; } .ds-line li.ds-current a::before { width: 13px; height: 13px; border: 3px solid var(--line, oklch(58% 0.2 31)); background: var(--raised, oklch(100% 0 0)); }"
+    },
+    {
+      "name": "Station Heading",
+      "kind": "custom",
+      "refersTo": "station-heading",
+      "description": "h2 section opener on a hairline with a hollow vermilion ring at its left end.",
+      "html": "<h2 class=\"ds-station-h2\">Luồng dữ liệu</h2>",
+      "css": ".ds-station-h2 { position: relative; margin: 0; padding-top: 0.9em; font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 24px; font-weight: 700; line-height: 1.3; letter-spacing: -0.02em; color: var(--ink-strong, oklch(17% 0.025 262)); border-top: 1px solid var(--rule, oklch(91.5% 0.006 258)); } .ds-station-h2::before { content: ''; position: absolute; top: -5px; left: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--surface, oklch(99.6% 0.002 255)); border: 2.5px solid var(--line, oklch(58% 0.2 31)); box-sizing: border-box; }"
+    },
+    {
+      "name": "Timetable Table",
+      "kind": "custom",
+      "refersTo": "timetable-table",
+      "description": "Tables set like a railway timetable: heavy head rule, hairline rows, no verticals, tabular figures.",
+      "html": "<table class=\"ds-timetable\"><thead><tr><th>Command</th><th>Vai trò</th><th align=\"right\">Thời gian</th></tr></thead><tbody><tr><td>open_file</td><td>Mở path, render, watch</td><td align=\"right\">12 ms</td></tr><tr><td>reload</td><td>Render lại file hiện tại</td><td align=\"right\">8 ms</td></tr></tbody></table>",
+      "css": ".ds-timetable { width: 100%; border-collapse: collapse; font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 14.7px; line-height: 1.55; font-variant-numeric: tabular-nums; color: var(--ink, oklch(25% 0.02 260)); } .ds-timetable th, .ds-timetable td { padding: 0.55em 0.9em; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule, oklch(91.5% 0.006 258)); } .ds-timetable th:first-child, .ds-timetable td:first-child { padding-left: 0.2em; } .ds-timetable th:last-child, .ds-timetable td:last-child { padding-right: 0.2em; } .ds-timetable th { font-weight: 600; font-size: 0.92em; color: var(--ink-strong, oklch(17% 0.025 262)); border-bottom: 2px solid var(--ink-strong, oklch(17% 0.025 262)); white-space: nowrap; } .ds-timetable [align=right] { text-align: right; } .ds-timetable tbody tr:hover td { background: color-mix(in oklch, var(--hover, oklch(94.6% 0.006 258)) 70%, transparent); }"
+    },
+    {
+      "name": "Code Block",
+      "kind": "card",
+      "refersTo": "code-block",
+      "description": "Tinted, hairline-bordered code case with a 32px head carrying the language and Copy.",
+      "html": "<div class=\"ds-code\"><div class=\"ds-code-head\"><span class=\"ds-code-lang\">rust</span><span class=\"ds-code-copy\">Copy</span></div><pre class=\"ds-code-pre\">fn main() {\n    println!(\"xin chào\");\n}</pre></div>",
+      "css": ".ds-code { border: 1px solid var(--rule, oklch(91.5% 0.006 258)); border-radius: 10px; background: var(--code-bg, oklch(97.2% 0.004 258)); overflow: hidden; } .ds-code-head { display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 12px 0 14px; background: var(--code-head, oklch(95.2% 0.005 258)); border-bottom: 1px solid var(--rule, oklch(91.5% 0.006 258)); font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 12px; } .ds-code-lang { font-weight: 600; color: var(--muted, oklch(49% 0.018 258)); text-transform: lowercase; } .ds-code-copy { font-weight: 500; color: var(--muted, oklch(49% 0.018 258)); } .ds-code-pre { margin: 0; padding: 14px 16px 16px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 13.4px; line-height: 1.65; font-variant-ligatures: none; color: var(--ink, oklch(25% 0.02 260)); }"
+    },
+    {
+      "name": "Status Bar with Progress Edge",
+      "kind": "nav",
+      "refersTo": "status-bar",
+      "description": "30px footer whose top edge is the vermilion reading-progress line.",
+      "html": "<footer class=\"ds-status\" style=\"--progress: 0.42\"><span><b class=\"ds-status-count\">2 / 7</b>Luồng dữ liệu</span><span class=\"ds-status-right\">1,284 words · 42% · 100%</span></footer>",
+      "css": ".ds-status { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 30px; padding: 0 8px 0 14px; background: var(--ground, oklch(97.4% 0.004 255)); border-top: 1px solid var(--rule, oklch(91.5% 0.006 258)); color: var(--muted, oklch(49% 0.018 258)); font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif; font-size: 12px; font-variant-numeric: tabular-nums; } .ds-status::before { content: ''; position: absolute; left: 0; top: -2px; height: 3px; width: calc(var(--progress, 0) * 100%); background: var(--line, oklch(58% 0.2 31)); border-radius: 0 2px 2px 0; transition: width 120ms linear; } .ds-status-count { margin-right: 10px; font-weight: 600; color: var(--line-ink, oklch(52% 0.19 30)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Station Signage System",
+    "overview": "A technical document is a line you travel. The outline is drawn as a vertical transit line with stations; the reader always knows which station they are at and how far along the line they have come. Every surface borrows from Swiss railway wayfinding: a cool near-white platform, deep blue-black ink, and a single signal vermilion that carries the line, the current station, focus, and progress. Nothing else is allowed to shout.\n\nThe chrome is quiet and dense (a 40px title bar, a 30px status bar, 12–13px UI text) so the reading column can be calm and generous: 16px Be Vietnam Pro at a 1.72 line height on a ~72ch measure. Tables are set like timetables, diagrams open like maps on a dotted ground, and code sits in tinted, hairline-bordered cases. Light and dark are both first-class and share every token name; dark mode lifts the vermilion and cools the ground rather than inverting.\n\nRejected explicitly: the generic gray IDE sidebar with a flat link list, and the earlier MarkText look.",
+    "keyCharacteristics": [
+      "One accent (signal vermilion) used for line, station, focus, selection, progress, and the primary-button hover; everything else is ink on cool neutrals.",
+      "Outline rendered as a line diagram: a 3px track, ring stations sized by heading depth, segments filling as the reader passes them.",
+      "Section headings (h2) carry the same station ring on a hairline rule, tying the column to the outline.",
+      "Timetable tables: heavy ink head rule, hairline rows, no vertical rules, tabular figures.",
+      "Status bar's top edge is the reading-progress line.",
+      "Flat by default; one soft shadow reserved for floating layers."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Vermilion means \"you are here / this is the line / this has focus\". It is never used for decoration, headings text, or links.", "section": "colors" },
+      { "name": "The Two Signals, Two Jobs Rule", "body": "Vermilion belongs to the route; Route Blue belongs to prose links. They do not swap.", "section": "colors" },
+      { "name": "The Same Names in the Dark Rule", "body": "Every color token exists under the same name in both `html[data-theme]` blocks; components reference tokens only, never a theme-specific literal.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "Be Vietnam Pro sets every word that is not code, including headings, chrome, and Mermaid labels (15px). No second display face.", "section": "typography" },
+      { "name": "The Tabular Figures Rule", "body": "Any number a reader compares (status counts, zoom %, word count, find count, table cells, ordered-list markers) uses `font-variant-numeric: tabular-nums`.", "section": "typography" },
+      { "name": "The Floats-Only Shadow Rule", "body": "If it sits in the document flow, it has no shadow. Only overlays and the selected segment get one.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** route every color through the theme tokens so light and dark stay in lockstep.",
+      "**Do** reserve signal vermilion for line, station, focus, selection, and progress (The One Signal Rule).",
+      "**Do** draw new navigational structure as stations on a line: hollow rings on a 3px track, sized by importance.",
+      "**Do** set tables as timetables: 2px ink head rule, hairline rows, no verticals, tabular figures.",
+      "**Do** keep chrome at 12–13px and the reading body at 16px × zoom on a 46rem measure.",
+      "**Do** use the floating shadow only for layers that sit above the document.",
+      "**Do** respect `prefers-reduced-motion`; all animation and transition is disabled under it."
+    ],
+    "donts": [
+      "**Don't** fall back to a gray IDE sidebar with a flat link list for the outline.",
+      "**Don't** introduce a second accent hue in chrome, or use Route Blue anywhere but prose links.",
+      "**Don't** add a second display face; Be Vietnam Pro sets every non-code word.",
+      "**Don't** put a logo in the title bar.",
+      "**Don't** give in-flow blocks (code, diagrams, tables) shadows; they use hairline borders and tonal fills.",
+      "**Don't** draw vertical rules in tables."
+    ]
+  }
+}

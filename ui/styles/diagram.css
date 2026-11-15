@@ -1,0 +1,341 @@
+/* Mermaid diagrams: inline map with pan/zoom, source view, fullscreen dialog. */
+
+html[data-theme="light"] {
+  --dg-ground: oklch(98.6% 0.003 258);
+  --dg-dot: oklch(88% 0.008 258);
+}
+
+html[data-theme="dark"] {
+  --dg-ground: oklch(19.4% 0.012 258);
+  --dg-dot: oklch(30% 0.012 258);
+}
+
+#preview-scroll {
+  container-type: inline-size;
+}
+
+/* Diagrams may run wider than the text measure, centred on the column. */
+#article .diagram {
+  --dg-width: min(calc(100cqw - 48px), max(100%, 1120px));
+  width: var(--dg-width);
+  margin-left: calc((100% - var(--dg-width)) / 2);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--dg-ground);
+  overflow: hidden;
+}
+
+.diagram .block-head {
+  padding-left: 6px;
+}
+
+.dg-tabs {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--rule) 70%, transparent);
+}
+
+.dg-tab {
+  appearance: none;
+  height: 22px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dg-tab:hover {
+  color: var(--ink-strong);
+}
+
+.dg-tab[aria-selected="true"] {
+  background: var(--raised);
+  color: var(--ink-strong);
+  box-shadow: 0 1px 2px oklch(20% 0.02 260 / 0.12);
+}
+
+.dg-kind {
+  margin-left: 10px;
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.dg-head-left,
+.dg-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dg-tools .icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.dg-tools .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.dg-zoom {
+  appearance: none;
+  min-width: 46px;
+  height: 26px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dg-zoom:hover {
+  background: var(--hover);
+}
+
+.dg-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--rule-strong);
+}
+
+.diagram[data-view="source"] .dg-tools .dg-map-only,
+.diagram:not([data-view="source"]) .dg-tools .dg-source-only {
+  display: none;
+}
+
+.dg-viewport {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  background-color: var(--dg-ground);
+  background-image: radial-gradient(var(--dg-dot) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  cursor: grab;
+}
+
+.dg-viewport.panning {
+  cursor: grabbing;
+}
+
+.dg-viewport.panning a {
+  pointer-events: none;
+}
+
+.dg-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.dg-canvas.animate {
+  transition: transform 260ms var(--ease-out);
+}
+
+.dg-canvas svg {
+  display: block;
+  max-width: none !important;
+}
+
+.dg-canvas svg .node :is(rect, polygon, circle, ellipse, path),
+.dg-canvas svg .actor {
+  stroke-width: 1.5px !important;
+}
+
+.dg-canvas svg a {
+  cursor: pointer;
+}
+
+.dg-canvas svg a .node :is(rect, polygon, circle, ellipse, path) {
+  stroke: var(--line) !important;
+}
+
+.dg-canvas svg a :is(.nodeLabel, text) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.dlg-viewport:focus {
+  outline: none;
+}
+
+.dg-canvas svg a:hover :is(rect, polygon, circle, path.basic) {
+  stroke: var(--line) !important;
+}
+
+.dg-more {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.dg-more .icon {
+  width: 13px;
+  height: 13px;
+  color: var(--line-ink);
+}
+
+.dg-more:hover {
+  border-color: var(--line);
+}
+
+.diagram.clipped .dg-more {
+  display: inline-flex;
+}
+
+.dg-viewport.panning .dg-more {
+  opacity: 0;
+}
+
+.diagram[data-view="source"] .dg-viewport,
+.diagram:not([data-view="source"]) .dg-source {
+  display: none;
+}
+
+#article .dg-source {
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--code-bg);
+}
+
+.dg-error {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--error-bg);
+  color: var(--error-fg);
+  border-bottom: 1px solid color-mix(in oklch, var(--error-fg) 20%, transparent);
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+
+.dg-error .icon {
+  margin-top: 0.15em;
+}
+
+.dg-error strong {
+  display: block;
+  color: inherit;
+}
+
+.dg-error code {
+  display: block;
+  margin-top: 2px;
+  white-space: pre-wrap;
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+}
+
+.diagram.failed .dg-tabs {
+  display: none;
+}
+
+.dg-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+/* —— Fullscreen —— */
+
+#diagram-dialog {
+  width: calc(100vw - 32px);
+  height: calc(100vh - 32px);
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  background: var(--dg-ground);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+#diagram-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: dialog-in 220ms var(--ease-out);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+#diagram-dialog::backdrop {
+  background: oklch(15% 0.02 260 / 0.45);
+}
+
+.dlg-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 6px 8px 6px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+
+.dlg-title {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.dlg-viewport {
+  flex: 1;
+  min-height: 0;
+}
+
+.dlg-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  margin: 0;
+  padding: 5px 12px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface) 88%, transparent);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 12px;
+  pointer-events: none;
+}

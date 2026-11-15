@@ -4,37 +4,46 @@ const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 const { openUrl } = window.__TAURI__.opener;
 
-const article = document.getElementById("article");
-const empty = document.getElementById("empty");
-const outlineList = document.getElementById("outline-list");
-const pathLabel = document.getElementById("path-label");
-const errorBanner = document.getElementById("error-banner");
-const previewScroll = document.getElementById("preview-scroll");
-const main = document.getElementById("main");
-const findBar = document.getElementById("find-bar");
-const findInput = document.getElementById("find-input");
-const findCount = document.getElementById("find-count");
-const zoomLabel = document.getElementById("zoom-label");
-const wordCountEl = document.getElementById("word-count");
-const statusbar = document.getElementById("statusbar");
-const statusHint = document.getElementById("status-hint");
-const btnZoomIn = document.getElementById("btn-zoom-in");
-const btnZoomOut = document.getElementById("btn-zoom-out");
-const recentWrap = document.getElementById("recent");
-const recentList = document.getElementById("recent-list");
-const resizer = document.getElementById("resizer");
-const btnOutline = document.getElementById("btn-outline");
+const $ = (id) => document.getElementById(id);
+
+const article = $("article");
+const empty = $("empty");
+const outlineList = $("outline-list");
+const outlineEmpty = $("outline-empty");
+const pathLabel = $("path-label");
+const pathDir = $("path-dir");
+const docTitle = $("doc-title");
+const errorBanner = $("error-banner");
+const errorText = $("error-text");
+const previewScroll = $("preview-scroll");
+const main = $("main");
+const findBar = $("find-bar");
+const findInput = $("find-input");
+const findCount = $("find-count");
+const zoomLabel = $("zoom-label");
+const wordCountEl = $("word-count");
+const progressEl = $("read-progress");
+const sectionEl = $("status-section");
+const statusbar = $("statusbar");
+const recentWrap = $("recent");
+const recentList = $("recent-list");
+const resizer = $("resizer");
+const btnOutline = $("btn-outline");
+const dialog = $("diagram-dialog");
 
 const NARROW_BREAKPOINT = 760;
 const SIDEBAR_MIN = 180;
-const SIDEBAR_MAX = 400;
+const SIDEBAR_MAX = 420;
 const FIND_DEBOUNCE_MS = 120;
+const XLINK = "http://www.w3.org/1999/xlink";
+/** Below this, 15px diagram labels drop under ~10px and stop being readable. */
+const INLINE_MIN_SCALE = 0.68;
 
 let prefs = {
   theme: "light",
   zoom: 1,
   outlineOpen: true,
-  sidebarWidth: 240,
+  sidebarWidth: 248,
   recent: [],
 };
 let outline = [];
@@ -46,7 +55,7 @@ let findTimer = null;
 let narrowAutoCollapsed = false;
 let resizing = false;
 let activeHeadingId = null;
-let tocScrollRaf = 0;
+let scrollRaf = 0;
 
 function basename(path) {
   const normalized = path.replace(/\\/g, "/");
@@ -60,19 +69,18 @@ function dirname(path) {
   return i >= 0 ? normalized.slice(0, i) : "";
 }
 
+function icon(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#i-${name}" /></svg>`;
+}
+
 function showError(msg) {
-  if (!msg) {
-    errorBanner.classList.remove("visible");
-    errorBanner.textContent = "";
-    return;
-  }
-  errorBanner.textContent = msg;
-  errorBanner.classList.add("visible");
+  errorText.textContent = msg || "";
+  errorBanner.classList.toggle("visible", Boolean(msg));
 }
 
 function clampSidebarWidth(w) {
   const n = Number(w);
-  if (!Number.isFinite(n)) return 240;
+  if (!Number.isFinite(n)) return 248;
   return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(n)));
 }
 
@@ -117,56 +125,344 @@ function updateStatus() {
   zoomLabel.textContent = `${Math.round((prefs.zoom || 1) * 100)}%`;
   const hasDoc = Boolean(currentPath);
   statusbar.classList.toggle("has-doc", hasDoc);
+  main.classList.toggle("no-doc", !hasDoc);
   if (hasDoc) {
-    statusHint.textContent = basename(currentPath);
-    statusHint.title = currentPath;
     wordCountEl.textContent =
-      currentWordCount === 1
-        ? "1 word"
-        : `${currentWordCount.toLocaleString()} words`;
+      currentWordCount === 1 ? "1 word" : `${currentWordCount.toLocaleString()} words`;
   } else {
-    statusHint.textContent = "";
-    statusHint.title = "";
     wordCountEl.textContent = "";
+    sectionEl.textContent = "";
+    progressEl.textContent = "";
+  }
+  updateProgress();
+}
+
+function updateProgress() {
+  if (article.hidden) {
+    statusbar.style.setProperty("--progress", "0");
+    return;
+  }
+  const { scrollTop, clientHeight, scrollHeight } = previewScroll;
+  const max = scrollHeight - clientHeight;
+  const p = max <= 0 ? 1 : Math.min(1, Math.max(0, scrollTop / max));
+  statusbar.style.setProperty("--progress", p.toFixed(4));
+  progressEl.textContent = `${Math.round(p * 100)}%`;
+}
+
+/* —— Clipboard —— */
+
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const label = btn.querySelector("span");
+    const prev = label?.textContent;
+    btn.classList.add("done");
+    btn.querySelector("use")?.setAttribute("href", "#i-check");
+    if (label) label.textContent = "Copied";
+    setTimeout(() => {
+      btn.classList.remove("done");
+      btn.querySelector("use")?.setAttribute("href", "#i-copy");
+      if (label) label.textContent = prev;
+    }, 1400);
+  } catch (e) {
+    showError(`Could not copy to the clipboard: ${e}`);
   }
 }
 
-function isMermaidBlock(code) {
-  return (
-    code.classList.contains("language-mermaid") ||
-    code.classList.contains("mermaid") ||
-    [...code.classList].some((c) => c.toLowerCase() === "language-mermaid")
-  );
+function copyButton(getText, label = "Copy") {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "text-btn";
+  btn.title = "Copy to clipboard";
+  btn.innerHTML = `${icon("copy")}<span>${label}</span>`;
+  btn.addEventListener("click", () => copyText(getText(), btn));
+  return btn;
 }
 
-function highlightCode() {
-  if (!window.hljs) return;
-  article.querySelectorAll("pre code").forEach((block) => {
-    if (isMermaidBlock(block)) return;
-    try {
-      window.hljs.highlightElement(block);
-    } catch (_) {
-      /* ignore unknown languages */
-    }
+/* —— Code blocks —— */
+
+function isMermaidBlock(code) {
+  return [...code.classList].some((c) => {
+    const l = c.toLowerCase();
+    return l === "language-mermaid" || l === "mermaid";
   });
 }
 
-let mermaidReady = false;
-
-function mermaidThemeName() {
-  return document.documentElement.dataset.theme === "dark" ? "dark" : "default";
+function codeLanguage(code) {
+  const cls = [...code.classList].find((c) => c.startsWith("language-"));
+  return cls ? cls.slice("language-".length) : "";
 }
 
-function ensureMermaid() {
-  if (!window.mermaid || mermaidReady) return !!window.mermaid;
-  try {
-    window.mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-      theme: mermaidThemeName(),
-      fontFamily: '"Open Sans", "Segoe UI", sans-serif',
+function enhanceCodeBlocks() {
+  article.querySelectorAll("pre > code").forEach((code) => {
+    if (isMermaidBlock(code)) return;
+    const pre = code.parentElement;
+    if (window.hljs) {
+      try {
+        window.hljs.highlightElement(code);
+      } catch (_) {
+        /* unknown language */
+      }
+    }
+    const lang = codeLanguage(code);
+    const wrap = document.createElement("div");
+    wrap.className = "code-block" + (lang ? " has-lang" : "");
+    const head = document.createElement("div");
+    head.className = "block-head";
+    const langEl = document.createElement("span");
+    langEl.className = "block-lang";
+    langEl.textContent = lang;
+    head.append(langEl, copyButton(() => code.textContent ?? ""));
+    pre.replaceWith(wrap);
+    wrap.append(head, pre);
+  });
+}
+
+/* —— Pan / zoom —— */
+
+class PanZoom {
+  constructor(viewport, canvas, { wheelZoom = false, maxFit = 1, minFit = 0.05, onChange } = {}) {
+    this.viewport = viewport;
+    this.canvas = canvas;
+    this.wheelZoom = wheelZoom;
+    this.maxFit = maxFit;
+    this.minFit = minFit;
+    this.onChange = onChange;
+    this.s = 1;
+    this.x = 0;
+    this.y = 0;
+    this.w = 0;
+    this.h = 0;
+    this.userMoved = false;
+    this.drag = null;
+    this.suppressClick = false;
+
+    viewport.addEventListener("pointerdown", (e) => this.onDown(e));
+    viewport.addEventListener("pointermove", (e) => this.onMove(e));
+    viewport.addEventListener("pointerup", (e) => this.onUp(e));
+    viewport.addEventListener("pointercancel", (e) => this.onUp(e));
+    viewport.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
+    viewport.addEventListener("dblclick", (e) => {
+      if (e.target.closest("a")) return;
+      this.fit(true);
     });
-    mermaidReady = true;
+    viewport.addEventListener(
+      "click",
+      (e) => {
+        if (this.suppressClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.suppressClick = false;
+        }
+      },
+      true
+    );
+  }
+
+  setContent(w, h) {
+    this.w = w;
+    this.h = h;
+    this.userMoved = false;
+  }
+
+  get pad() {
+    return 24;
+  }
+
+  fitScale() {
+    const vw = this.viewport.clientWidth;
+    const vh = this.viewport.clientHeight;
+    if (!this.w || !this.h || !vw || !vh) return 1;
+    return Math.min(this.maxFit, (vw - this.pad * 2) / this.w, (vh - this.pad * 2) / this.h);
+  }
+
+  apply(animate = false) {
+    this.canvas.classList.toggle("animate", animate);
+    this.canvas.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.s})`;
+    this.onChange?.(this.s);
+  }
+
+  center(scale) {
+    const vw = this.viewport.clientWidth;
+    const vh = this.viewport.clientHeight;
+    this.s = scale;
+    const cw = this.w * scale;
+    const ch = this.h * scale;
+    this.x = cw + this.pad * 2 <= vw ? (vw - cw) / 2 : this.pad;
+    this.y = ch + this.pad * 2 <= vh ? (vh - ch) / 2 : this.pad;
+  }
+
+  /** True when the fitted scale was clamped up, so part of the diagram is off-screen. */
+  get clipped() {
+    return this.fitScale() < this.minFit;
+  }
+
+  fit(animate = false) {
+    this.center(Math.max(this.minFit, this.fitScale()));
+    this.userMoved = false;
+    this.apply(animate);
+  }
+
+  actualSize() {
+    this.center(1);
+    this.userMoved = true;
+    this.apply(true);
+  }
+
+  zoomAt(factor, px, py, animate = false) {
+    const next = Math.min(8, Math.max(0.1, this.s * factor));
+    const k = next / this.s;
+    this.x = px - (px - this.x) * k;
+    this.y = py - (py - this.y) * k;
+    this.s = next;
+    this.userMoved = true;
+    this.apply(animate);
+  }
+
+  zoomBy(factor) {
+    this.zoomAt(factor, this.viewport.clientWidth / 2, this.viewport.clientHeight / 2, true);
+  }
+
+  onDown(e) {
+    if (e.button !== 0) return;
+    this.drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: this.x, y: this.y, moved: false };
+  }
+
+  onMove(e) {
+    const d = this.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) < 4) return;
+    if (!d.moved) {
+      d.moved = true;
+      this.viewport.setPointerCapture(e.pointerId);
+      this.viewport.classList.add("panning");
+    }
+    this.x = d.x + dx;
+    this.y = d.y + dy;
+    this.userMoved = true;
+    this.apply(false);
+  }
+
+  onUp(e) {
+    const d = this.drag;
+    if (!d || d.id !== e.pointerId) return;
+    if (d.moved) {
+      this.suppressClick = true;
+      setTimeout(() => (this.suppressClick = false), 0);
+    }
+    this.viewport.classList.remove("panning");
+    this.drag = null;
+  }
+
+  onWheel(e) {
+    if (!this.wheelZoom && !e.ctrlKey) return;
+    e.preventDefault();
+    const rect = this.viewport.getBoundingClientRect();
+    const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0018));
+    this.zoomAt(factor, e.clientX - rect.left, e.clientY - rect.top);
+  }
+}
+
+/* —— Mermaid —— */
+
+const diagramHeights = new Map();
+let mermaidSeq = 0;
+let renderToken = 0;
+let mermaidQueue = Promise.resolve();
+
+function mermaidConfig() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  const t = dark
+    ? {
+        background: "#1b2029",
+        primaryColor: "#252b36",
+        primaryBorderColor: "#9aa4b6",
+        primaryTextColor: "#e7eaf0",
+        secondaryColor: "#2b2330",
+        secondaryBorderColor: "#a07a86",
+        tertiaryColor: "#1f2530",
+        tertiaryBorderColor: "#4a5262",
+        lineColor: "#8d97aa",
+        textColor: "#d9dde5",
+        clusterBkg: "#20262f",
+        clusterBorder: "#3e4656",
+        edgeLabelBackground: "#1d2129",
+        noteBkgColor: "#3a2622",
+        noteTextColor: "#f1e4df",
+        noteBorderColor: "#d9734f",
+        actorBkg: "#252b36",
+        actorBorder: "#9aa4b6",
+        actorTextColor: "#e7eaf0",
+        actorLineColor: "#4f5768",
+        signalColor: "#c5ccd8",
+        signalTextColor: "#e7eaf0",
+        labelBoxBkgColor: "#252b36",
+        labelBoxBorderColor: "#9aa4b6",
+        labelTextColor: "#e7eaf0",
+        loopTextColor: "#e7eaf0",
+        activationBkgColor: "#323a48",
+        activationBorderColor: "#9aa4b6",
+        sequenceNumberColor: "#1b2029",
+      }
+    : {
+        background: "#ffffff",
+        primaryColor: "#ffffff",
+        primaryBorderColor: "#2b3343",
+        primaryTextColor: "#1b2130",
+        secondaryColor: "#fdf0ec",
+        secondaryBorderColor: "#c9563d",
+        tertiaryColor: "#f4f6f9",
+        tertiaryBorderColor: "#cdd3dd",
+        lineColor: "#6b7486",
+        textColor: "#2b3343",
+        clusterBkg: "#f4f6f9",
+        clusterBorder: "#cdd3dd",
+        edgeLabelBackground: "#f9fafb",
+        noteBkgColor: "#fdf0ec",
+        noteTextColor: "#1b2130",
+        noteBorderColor: "#d2462f",
+        actorBkg: "#ffffff",
+        actorBorder: "#2b3343",
+        actorTextColor: "#1b2130",
+        actorLineColor: "#b4bbc8",
+        signalColor: "#2b3343",
+        signalTextColor: "#1b2130",
+        labelBoxBkgColor: "#ffffff",
+        labelBoxBorderColor: "#2b3343",
+        labelTextColor: "#1b2130",
+        loopTextColor: "#1b2130",
+        activationBkgColor: "#f1f3f7",
+        activationBorderColor: "#2b3343",
+        sequenceNumberColor: "#ffffff",
+      };
+  const font = '"Be Vietnam Pro", "Segoe UI", sans-serif';
+  return {
+    startOnLoad: false,
+    securityLevel: "antiscript",
+    theme: "base",
+    darkMode: dark,
+    fontFamily: font,
+    themeVariables: { ...t, fontFamily: font, fontSize: "15px" },
+    flowchart: { useMaxWidth: false, htmlLabels: true, padding: 14, nodeSpacing: 46, rankSpacing: 54 },
+    sequence: { useMaxWidth: false, actorFontFamily: font, noteFontFamily: font, messageFontFamily: font },
+    class: { useMaxWidth: false },
+    state: { useMaxWidth: false },
+    er: { useMaxWidth: false },
+    gantt: { useMaxWidth: false },
+    journey: { useMaxWidth: false },
+    pie: { useMaxWidth: false },
+    mindmap: { useMaxWidth: false },
+    timeline: { useMaxWidth: false },
+    gitGraph: { useMaxWidth: false },
+  };
+}
+
+function initMermaid() {
+  if (!window.mermaid) return false;
+  try {
+    window.mermaid.initialize(mermaidConfig());
     return true;
   } catch (e) {
     console.error("mermaid init failed", e);
@@ -174,78 +470,369 @@ function ensureMermaid() {
   }
 }
 
-/** Turn ```mermaid fences into diagram hosts (keeps source for re-theme). */
-function prepareMermaidBlocks() {
+function diagramKind(source) {
+  const lines = source.split(/\r?\n/);
+  let inFront = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line === "---") {
+      inFront = !inFront;
+      continue;
+    }
+    if (inFront || line.startsWith("%%")) continue;
+    const token = line.split(/[\s{]/)[0];
+    const map = {
+      graph: "flowchart",
+      flowchart: "flowchart",
+      sequenceDiagram: "sequence",
+      classDiagram: "class",
+      stateDiagram: "state",
+      "stateDiagram-v2": "state",
+      erDiagram: "entity relationship",
+      gantt: "gantt",
+      pie: "pie chart",
+      journey: "user journey",
+      gitGraph: "git graph",
+      mindmap: "mindmap",
+      timeline: "timeline",
+      quadrantChart: "quadrant chart",
+      requirementDiagram: "requirement",
+      C4Context: "C4",
+      sankey: "sankey",
+      "sankey-beta": "sankey",
+      xychart: "xy chart",
+      "xychart-beta": "xy chart",
+      block: "block",
+      "block-beta": "block",
+      architecture: "architecture",
+      "architecture-beta": "architecture",
+    };
+    return map[token] || token;
+  }
+  return "";
+}
+
+/** Size the SVG to its viewBox so pan/zoom works in real pixels. */
+function normalizeSvg(svg) {
+  const vb = svg.viewBox?.baseVal;
+  let w = vb && vb.width ? vb.width : parseFloat(svg.getAttribute("width")) || 0;
+  let h = vb && vb.height ? vb.height : parseFloat(svg.getAttribute("height")) || 0;
+  if (!w || !h) {
+    const r = svg.getBoundingClientRect();
+    w = r.width;
+    h = r.height;
+  }
+  svg.style.maxWidth = "none";
+  svg.setAttribute("width", String(w));
+  svg.setAttribute("height", String(h));
+  return { w, h };
+}
+
+async function renderMermaidInto(canvas, source) {
+  const id = `mmd-${++mermaidSeq}`;
+  try {
+    const { svg, bindFunctions } = await window.mermaid.render(id, source);
+    canvas.innerHTML = svg;
+    bindFunctions?.(canvas);
+    const el = canvas.querySelector("svg");
+    return el ? normalizeSvg(el) : null;
+  } finally {
+    for (const strayId of [`d${id}`, id]) {
+      const stray = document.getElementById(strayId);
+      if (stray && !canvas.contains(stray)) stray.remove();
+    }
+  }
+}
+
+function toolButton(act, iconName, title, extraClass = "") {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = `icon-btn ${extraClass}`.trim();
+  b.dataset.act = act;
+  b.title = title;
+  b.setAttribute("aria-label", title.replace(/\s*\(.*\)$/, ""));
+  b.innerHTML = icon(iconName);
+  return b;
+}
+
+function buildDiagram(source) {
+  const dg = document.createElement("figure");
+  dg.className = "diagram";
+  dg.dataset.view = "map";
+  dg.dataset.source = source;
+
+  const head = document.createElement("div");
+  head.className = "block-head";
+
+  const left = document.createElement("div");
+  left.className = "dg-head-left";
+  const tabs = document.createElement("div");
+  tabs.className = "dg-tabs";
+  tabs.setAttribute("role", "tablist");
+  tabs.setAttribute("aria-label", "Diagram view");
+  for (const [view, label] of [
+    ["map", "Diagram"],
+    ["source", "Source"],
+  ]) {
+    const t = document.createElement("button");
+    t.type = "button";
+    t.className = "dg-tab";
+    t.setAttribute("role", "tab");
+    t.dataset.view = view;
+    t.textContent = label;
+    t.setAttribute("aria-selected", String(view === "map"));
+    t.addEventListener("click", () => setDiagramView(dg, view));
+    tabs.appendChild(t);
+  }
+  const kind = document.createElement("span");
+  kind.className = "dg-kind";
+  kind.textContent = diagramKind(source);
+  left.append(tabs, kind);
+
+  const tools = document.createElement("div");
+  tools.className = "dg-tools";
+  const zoomBtn = document.createElement("button");
+  zoomBtn.type = "button";
+  zoomBtn.className = "dg-zoom dg-map-only";
+  zoomBtn.dataset.act = "reset";
+  zoomBtn.title = "Actual size";
+  zoomBtn.setAttribute("aria-label", "Zoom level, click for actual size");
+  zoomBtn.textContent = "100%";
+  const sep = document.createElement("span");
+  sep.className = "dg-sep dg-map-only";
+  sep.setAttribute("aria-hidden", "true");
+  const copy = copyButton(() => source, "Copy source");
+  copy.classList.add("dg-source-only");
+  tools.append(
+    toolButton("zoom-out", "minus", "Zoom out (Ctrl+scroll)", "dg-map-only"),
+    zoomBtn,
+    toolButton("zoom-in", "plus", "Zoom in (Ctrl+scroll)", "dg-map-only"),
+    toolButton("fit", "fit", "Fit (double-click)", "dg-map-only"),
+    sep,
+    toolButton("expand", "expand", "Open full window", "dg-map-only"),
+    copy
+  );
+  head.append(left, tools);
+
+  const viewport = document.createElement("div");
+  viewport.className = "dg-viewport";
+  viewport.style.height = `${diagramHeights.get(source) || 220}px`;
+  const canvas = document.createElement("div");
+  canvas.className = "dg-canvas";
+  viewport.appendChild(canvas);
+
+  const src = document.createElement("pre");
+  src.className = "dg-source";
+  const code = document.createElement("code");
+  code.className = "language-mermaid";
+  code.textContent = source;
+  src.appendChild(code);
+
+  dg.append(head, viewport, src);
+
+  const hint = document.createElement("button");
+  hint.type = "button";
+  hint.className = "dg-more";
+  hint.innerHTML = `${icon("expand")}<span>Drag to pan, or open full window</span>`;
+  hint.addEventListener("click", () => openDiagramDialog(dg));
+  hint.addEventListener("pointerdown", (e) => e.stopPropagation());
+  viewport.appendChild(hint);
+
+  const pz = new PanZoom(viewport, canvas, {
+    minFit: INLINE_MIN_SCALE,
+    onChange: (s) => (zoomBtn.textContent = `${Math.round(s * 100)}%`),
+  });
+  dg._pz = pz;
+  dg._viewport = viewport;
+  dg._canvas = canvas;
+
+  tools.addEventListener("click", (e) => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "zoom-in") pz.zoomBy(1.25);
+    else if (act === "zoom-out") pz.zoomBy(0.8);
+    else if (act === "fit") pz.fit(true);
+    else if (act === "reset") pz.actualSize();
+    else if (act === "expand") openDiagramDialog(dg);
+  });
+
+  let lastWidth = 0;
+  new ResizeObserver(() => {
+    const width = viewport.clientWidth;
+    if (!width || width === lastWidth || !pz.w) return;
+    lastWidth = width;
+    sizeViewport(dg);
+    if (!pz.userMoved) pz.fit();
+  }).observe(viewport);
+
+  return dg;
+}
+
+function sizeViewport(dg) {
+  const pz = dg._pz;
+  const vw = dg._viewport.clientWidth;
+  if (!pz.w || !vw) return;
+  const scale = Math.max(INLINE_MIN_SCALE, Math.min(1, (vw - pz.pad * 2) / pz.w));
+  const maxH = Math.max(260, Math.min(620, window.innerHeight * 0.68));
+  const h = Math.round(Math.min(maxH, Math.max(140, pz.h * scale + pz.pad * 2)));
+  dg._viewport.style.height = `${h}px`;
+  diagramHeights.set(dg.dataset.source, h);
+  dg.classList.toggle("clipped", pz.clipped);
+}
+
+function setDiagramView(dg, view) {
+  dg.dataset.view = view;
+  dg.querySelectorAll(".dg-tab").forEach((t) =>
+    t.setAttribute("aria-selected", String(t.dataset.view === view))
+  );
+  if (view === "map" && dg._pz.w && !dg._pz.userMoved) {
+    requestAnimationFrame(() => {
+      sizeViewport(dg);
+      dg._pz.fit();
+    });
+  }
+  if (findBar.classList.contains("visible") && findInput.value) runFind(findInput.value);
+}
+
+function showDiagramError(dg, err) {
+  dg.classList.add("failed");
+  dg.dataset.view = "source";
+  const box = document.createElement("div");
+  box.className = "dg-error";
+  const msg = String(err?.message || err || "Unknown error")
+    .split("\n")
+    .slice(0, 6)
+    .join("\n");
+  box.innerHTML = `${icon("alert")}<div><strong>This Mermaid diagram has a syntax error.</strong><code></code></div>`;
+  box.querySelector("code").textContent = msg;
+  dg.querySelector(".block-head").after(box);
+}
+
+function prepareDiagrams() {
+  const out = [];
   article.querySelectorAll("pre > code").forEach((code) => {
     if (!isMermaidBlock(code)) return;
     const pre = code.parentElement;
-    if (!pre || pre.tagName !== "PRE") return;
-    const source = code.textContent ?? "";
-    const wrap = document.createElement("div");
-    wrap.className = "mermaid-wrap";
-    const srcEl = document.createElement("pre");
-    srcEl.className = "mermaid-source";
-    srcEl.hidden = true;
-    srcEl.textContent = source;
-    const host = document.createElement("div");
-    host.className = "mermaid";
-    host.textContent = source;
-    wrap.append(srcEl, host);
-    pre.replaceWith(wrap);
+    const dg = buildDiagram(code.textContent ?? "");
+    pre.replaceWith(dg);
+    out.push(dg);
   });
+  return out;
 }
 
-function resetMermaidHosts() {
-  article.querySelectorAll(".mermaid-wrap").forEach((wrap) => {
-    const source = wrap.querySelector(".mermaid-source")?.textContent ?? "";
-    const host = document.createElement("div");
-    host.className = "mermaid";
-    host.textContent = source;
-    wrap.querySelectorAll(".mermaid, .mermaid-error").forEach((n) => n.remove());
-    wrap.appendChild(host);
-  });
-}
-
-async function renderMermaidDiagrams() {
-  if (!ensureMermaid()) return;
-  prepareMermaidBlocks();
-  const nodes = [...article.querySelectorAll(".mermaid-wrap .mermaid")];
-  if (!nodes.length) return;
-
+async function renderDiagram(dg, token) {
+  if (token !== renderToken || !dg.isConnected) return;
+  dg.classList.remove("failed");
+  dg.querySelector(".dg-error")?.remove();
   try {
-    // Re-init theme each pass so light/dark stays in sync.
-    window.mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-      theme: mermaidThemeName(),
-      fontFamily: '"Open Sans", "Segoe UI", sans-serif',
-    });
-    await window.mermaid.run({ nodes });
+    const size = await renderMermaidInto(dg._canvas, dg.dataset.source);
+    if (token !== renderToken || !size) return;
+    dg._pz.setContent(size.w, size.h);
+    sizeViewport(dg);
+    dg._pz.fit();
   } catch (e) {
-    console.error("mermaid run failed", e);
-    nodes.forEach((node) => {
-      if (node.querySelector("svg")) return;
-      const err = document.createElement("div");
-      err.className = "mermaid-error";
-      err.textContent = "Mermaid diagram failed to render.";
-      node.replaceWith(err);
-    });
+    if (token !== renderToken) return;
+    dg._canvas.innerHTML = "";
+    showDiagramError(dg, e);
   }
 }
+
+function renderAllDiagrams() {
+  const diagrams = [...article.querySelectorAll(".diagram")];
+  const token = ++renderToken;
+  if (!diagrams.length || !initMermaid()) return Promise.resolve();
+  mermaidQueue = mermaidQueue
+    .catch(() => {})
+    .then(async () => {
+      try {
+        await document.fonts.load('15px "Be Vietnam Pro"');
+      } catch (_) {
+        /* fall back to whatever is loaded */
+      }
+      for (const dg of diagrams) await renderDiagram(dg, token);
+    });
+  return mermaidQueue;
+}
+
+/* —— Fullscreen diagram —— */
+
+const dlgViewport = dialog.querySelector(".dg-viewport");
+const dlgCanvas = dialog.querySelector(".dg-canvas");
+const dlgZoom = dialog.querySelector(".dg-zoom");
+const dlgTitle = dialog.querySelector(".dlg-title");
+const dialogPz = new PanZoom(dlgViewport, dlgCanvas, {
+  wheelZoom: true,
+  maxFit: 2,
+  onChange: (s) => (dlgZoom.textContent = `${Math.round(s * 100)}%`),
+});
+
+async function openDiagramDialog(dg) {
+  const source = dg.dataset.source;
+  const kind = diagramKind(source);
+  dlgTitle.textContent = kind ? `${kind[0].toUpperCase()}${kind.slice(1)} diagram` : "Diagram";
+  dlgCanvas.innerHTML = "";
+  dialog.showModal();
+  try {
+    initMermaid();
+    const size = await renderMermaidInto(dlgCanvas, source);
+    if (!size) return;
+    dialogPz.setContent(size.w, size.h);
+    requestAnimationFrame(() => dialogPz.fit());
+  } catch (e) {
+    dialog.close();
+    showError(`Diagram failed to render: ${e?.message || e}`);
+  }
+}
+
+dialog.addEventListener("close", () => {
+  dlgCanvas.innerHTML = "";
+});
+
+dialog.querySelector(".dg-tools").addEventListener("click", (e) => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (act === "zoom-in") dialogPz.zoomBy(1.25);
+  else if (act === "zoom-out") dialogPz.zoomBy(0.8);
+  else if (act === "fit") dialogPz.fit(true);
+  else if (act === "reset") dialogPz.actualSize();
+  else if (act === "close") dialog.close();
+});
+
+dialog.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "+" || e.key === "=") dialogPz.zoomBy(1.25);
+  else if (e.key === "-") dialogPz.zoomBy(0.8);
+  else if (e.key === "0") dialogPz.actualSize();
+  else if (e.key.toLowerCase() === "f") dialogPz.fit(true);
+  else return;
+  e.preventDefault();
+});
+
+new ResizeObserver(() => {
+  if (dialog.open && !dialogPz.userMoved) dialogPz.fit();
+}).observe(dlgViewport);
+
+/* —— Outline —— */
 
 function renderOutline(entries) {
   outline = entries || [];
   outlineList.innerHTML = "";
+  outlineEmpty.hidden = outline.length > 0 || article.hidden;
+  const minLevel = outline.reduce((m, e) => Math.min(m, e.level), 6);
   for (const entry of outline) {
     const li = document.createElement("li");
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = entry.title;
-    btn.dataset.level = String(entry.level);
+    btn.title = entry.title;
+    btn.dataset.depth = String(Math.min(3, entry.level - minLevel));
     btn.dataset.id = entry.id;
     btn.addEventListener("click", () => {
       const el = document.getElementById(entry.id);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (isNarrow() && main.classList.contains("outline-user-open")) {
+        main.classList.remove("outline-user-open");
+        applyPrefs();
+      }
     });
     li.appendChild(btn);
     outlineList.appendChild(li);
@@ -254,7 +841,6 @@ function renderOutline(entries) {
   updateActiveHeading();
 }
 
-/** Content Y of an element relative to the preview scrollport. */
 function offsetInPreview(el) {
   const rootTop = previewScroll.getBoundingClientRect().top;
   return el.getBoundingClientRect().top - rootTop + previewScroll.scrollTop;
@@ -262,61 +848,62 @@ function offsetInPreview(el) {
 
 /**
  * Scroll-spy: last heading whose top has crossed a probe line near the top of
- * the viewport. At document end, force the last outline entry so short trailing
- * sections still light up in the TOC.
+ * the viewport. At document end, force the last entry so short trailing
+ * sections still light up.
  */
 function updateActiveHeading() {
-  const buttons = [...outlineList.querySelectorAll("button")];
-  if (!outline.length || !buttons.length || article.hidden) {
+  const items = [...outlineList.children];
+  if (!outline.length || !items.length || article.hidden) {
     activeHeadingId = null;
+    sectionEl.textContent = "";
     return;
   }
 
   const { scrollTop, clientHeight, scrollHeight } = previewScroll;
   const atBottom = scrollTop + clientHeight >= scrollHeight - 12;
 
-  let activeId = outline[0].id;
+  let activeIdx = 0;
   if (atBottom) {
-    activeId = outline[outline.length - 1].id;
+    activeIdx = outline.length - 1;
   } else {
     const probe = scrollTop + Math.min(96, Math.max(32, clientHeight * 0.2));
-    for (const item of outline) {
+    outline.forEach((item, i) => {
       const el = document.getElementById(item.id);
-      if (!el) continue;
-      if (offsetInPreview(el) <= probe) activeId = item.id;
-      else break;
-    }
+      if (el && offsetInPreview(el) <= probe) activeIdx = i;
+    });
   }
 
+  const activeId = outline[activeIdx].id;
   if (activeId === activeHeadingId) return;
   activeHeadingId = activeId;
+  const count = document.createElement("span");
+  count.className = "status-count";
+  count.textContent = `${activeIdx + 1} / ${outline.length}`;
+  sectionEl.replaceChildren(count, outline[activeIdx].title);
+  sectionEl.title = outline[activeIdx].title;
 
-  let activeBtn = null;
-  for (const btn of buttons) {
-    const on = btn.dataset.id === activeId;
-    btn.classList.toggle("active", on);
-    if (on) activeBtn = btn;
-  }
-  // Keep the active TOC row visible without stealing focus from the reader.
-  activeBtn?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  items.forEach((li, i) => {
+    li.classList.toggle("passed", i < activeIdx);
+    li.classList.toggle("current", i === activeIdx);
+  });
+  items[activeIdx]?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function onPreviewScroll() {
-  if (tocScrollRaf) return;
-  tocScrollRaf = requestAnimationFrame(() => {
-    tocScrollRaf = 0;
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
     updateActiveHeading();
+    updateProgress();
   });
 }
+
+/* —— Recent files —— */
 
 function renderRecent() {
   const items = Array.isArray(prefs.recent) ? prefs.recent : [];
   recentList.innerHTML = "";
-  if (!items.length) {
-    recentWrap.hidden = true;
-    return;
-  }
-  recentWrap.hidden = false;
+  recentWrap.hidden = !items.length;
   for (const path of items) {
     const li = document.createElement("li");
     const btn = document.createElement("button");
@@ -343,6 +930,8 @@ function renderRecent() {
   }
 }
 
+/* —— Documents —— */
+
 function showDocument(doc) {
   showError(null);
   empty.classList.remove("visible");
@@ -351,15 +940,14 @@ function showDocument(doc) {
   currentPath = doc.path || "";
   currentWordCount = Number(doc.word_count) || 0;
   pathLabel.textContent = basename(currentPath) || doc.title || "";
-  pathLabel.title = currentPath;
+  pathDir.textContent = dirname(currentPath);
+  docTitle.title = currentPath;
   document.title = `${doc.title || "markdown-look"} — markdown-look`;
+  prepareDiagrams();
+  enhanceCodeBlocks();
   renderOutline(doc.outline || []);
-  highlightCode();
   clearFind();
   updateStatus();
-  void renderMermaidDiagrams().then(() => {
-    requestAnimationFrame(updateActiveHeading);
-  });
 
   if (currentPath) {
     prefs.recent = [currentPath, ...(prefs.recent || []).filter((p) => p !== currentPath)].slice(
@@ -367,6 +955,13 @@ function showDocument(doc) {
       8
     );
   }
+
+  return renderAllDiagrams().then(() => {
+    requestAnimationFrame(() => {
+      updateActiveHeading();
+      updateProgress();
+    });
+  });
 }
 
 function showEmpty() {
@@ -374,8 +969,10 @@ function showEmpty() {
   article.innerHTML = "";
   empty.classList.add("visible");
   outlineList.innerHTML = "";
+  outlineEmpty.hidden = true;
   pathLabel.textContent = "";
-  pathLabel.title = "";
+  pathDir.textContent = "";
+  docTitle.title = "";
   currentPath = "";
   currentWordCount = 0;
   updateStatus();
@@ -385,6 +982,7 @@ function showEmpty() {
 async function openPath(path, force = false) {
   try {
     const doc = await invoke("open_file", { path, force });
+    previewScroll.scrollTop = 0;
     showDocument(doc);
     try {
       prefs = (await invoke("get_prefs")) || prefs;
@@ -426,29 +1024,30 @@ function captureScrollAnchor() {
 }
 
 function restoreScrollAnchor(anchor) {
-  requestAnimationFrame(() => {
-    if (anchor.id) {
-      const el = document.getElementById(anchor.id);
-      if (el) {
-        const rootRect = previewScroll.getBoundingClientRect();
-        const rect = el.getBoundingClientRect();
-        previewScroll.scrollTop += rect.top - rootRect.top - (anchor.offset || 0);
-      } else {
-        previewScroll.scrollTop = anchor.offset || 0;
-      }
+  if (anchor.id) {
+    const el = document.getElementById(anchor.id);
+    if (el) {
+      const rootRect = previewScroll.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
+      previewScroll.scrollTop += rect.top - rootRect.top - (anchor.offset || 0);
     } else {
       previewScroll.scrollTop = anchor.offset || 0;
     }
-    updateActiveHeading();
-  });
+  } else {
+    previewScroll.scrollTop = anchor.offset || 0;
+  }
+  updateActiveHeading();
+  updateProgress();
 }
 
 async function reloadKeepingScroll() {
   const anchor = captureScrollAnchor();
   try {
     const doc = await invoke("reload");
-    showDocument(doc);
-    restoreScrollAnchor(anchor);
+    const rendered = showDocument(doc);
+    requestAnimationFrame(() => restoreScrollAnchor(anchor));
+    await rendered;
+    requestAnimationFrame(() => restoreScrollAnchor(anchor));
   } catch (e) {
     showError(String(e));
   }
@@ -460,10 +1059,19 @@ function clearFind() {
   findMatches = [];
   findIndex = -1;
   findCount.textContent = "";
+  findCount.classList.remove("none");
   if (CSS.highlights) {
     CSS.highlights.delete("md-find");
     CSS.highlights.delete("md-find-current");
   }
+}
+
+function isSearchableText(node) {
+  const el = node.parentElement;
+  if (!el || el.closest(".block-head, .dg-viewport, .dg-error")) return false;
+  const src = el.closest(".dg-source");
+  if (src && src.closest(".diagram")?.dataset.view !== "source") return false;
+  return true;
 }
 
 function collectTextNodes(root) {
@@ -471,27 +1079,23 @@ function collectTextNodes(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let n;
   while ((n = walker.nextNode())) {
-    if (n.nodeValue && n.nodeValue.trim()) nodes.push(n);
+    if (n.nodeValue && n.nodeValue.trim() && isSearchableText(n)) nodes.push(n);
   }
   return nodes;
 }
 
 function runFind(query) {
   clearFind();
-  if (!query || article.hidden) {
-    findCount.textContent = "0/0";
-    return;
-  }
+  if (!query || article.hidden) return;
   if (!CSS.highlights) {
-    findCount.textContent = "N/A";
+    findCount.textContent = "Unavailable";
     return;
   }
 
   const lower = query.toLowerCase();
   const ranges = [];
   for (const node of collectTextNodes(article)) {
-    const text = node.nodeValue;
-    const hay = text.toLowerCase();
+    const hay = node.nodeValue.toLowerCase();
     let from = 0;
     while (from < hay.length) {
       const idx = hay.indexOf(lower, from);
@@ -518,7 +1122,7 @@ function scrollRangeIntoView(range) {
   try {
     const rect = range.getBoundingClientRect();
     const rootRect = previewScroll.getBoundingClientRect();
-    const padding = 48;
+    const padding = 72;
     if (rect.top < rootRect.top + padding || rect.bottom > rootRect.bottom - padding) {
       const delta = rect.top - rootRect.top - previewScroll.clientHeight / 2 + rect.height / 2;
       previewScroll.scrollBy({ top: delta, behavior: "smooth" });
@@ -531,15 +1135,17 @@ function scrollRangeIntoView(range) {
 function updateFindHighlight() {
   if (!CSS.highlights) return;
   if (!findMatches.length) {
-    findCount.textContent = "0/0";
+    findCount.textContent = findInput.value ? "No results" : "";
+    findCount.classList.toggle("none", Boolean(findInput.value));
     CSS.highlights.delete("md-find");
     CSS.highlights.delete("md-find-current");
     return;
   }
+  findCount.classList.remove("none");
   const others = findMatches.filter((_, i) => i !== findIndex);
   CSS.highlights.set("md-find", new Highlight(...others));
   CSS.highlights.set("md-find-current", new Highlight(findMatches[findIndex]));
-  findCount.textContent = `${findIndex + 1}/${findMatches.length}`;
+  findCount.textContent = `${findIndex + 1} of ${findMatches.length}`;
   scrollRangeIntoView(findMatches[findIndex]);
 }
 
@@ -563,23 +1169,21 @@ function closeFind() {
   clearFind();
 }
 
-/* —— Link interception —— */
+/* —— Links (article and diagrams) —— */
 
-article.addEventListener("click", async (ev) => {
-  const a = ev.target.closest("a");
-  if (!a || !article.contains(a)) return;
-  const href = a.getAttribute("href");
-  if (!href) return;
-  ev.preventDefault();
+function linkHref(a) {
+  return a.getAttribute("href") || a.getAttributeNS(XLINK, "href") || "";
+}
 
+async function followLink(href) {
   if (href.startsWith("#")) {
-    const id = decodeURIComponent(href.slice(1));
-    const el = document.getElementById(id);
+    if (dialog.open) dialog.close();
+    const el = document.getElementById(decodeURIComponent(href.slice(1)));
     if (el) el.scrollIntoView({ behavior: "smooth" });
     return;
   }
 
-  if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:")) {
+  if (/^(https?:|mailto:)/i.test(href)) {
     try {
       await openUrl(href);
     } catch (e) {
@@ -588,17 +1192,11 @@ article.addEventListener("click", async (ev) => {
     return;
   }
 
-  const lower = href.toLowerCase();
-  if (
-    lower.endsWith(".md") ||
-    lower.endsWith(".markdown") ||
-    lower.endsWith(".mdx") ||
-    lower.endsWith(".txt") ||
-    lower.includes(".md#")
-  ) {
-    const pathPart = href.split("#")[0];
+  const pathPart = href.split("#")[0];
+  if (/\.(md|markdown|mdx|txt)$/i.test(pathPart)) {
     try {
       const abs = await invoke("resolve_relative", { rel: pathPart });
+      if (dialog.open) dialog.close();
       await openPath(abs);
       const hash = href.includes("#") ? href.split("#")[1] : null;
       if (hash) {
@@ -609,8 +1207,23 @@ article.addEventListener("click", async (ev) => {
     } catch (e) {
       showError(String(e));
     }
+    return;
   }
-});
+
+  showError(`Can't open this link from the viewer: ${href}`);
+}
+
+function onLinkClick(ev) {
+  const a = ev.target.closest("a");
+  if (!a) return;
+  const href = linkHref(a);
+  if (!href) return;
+  ev.preventDefault();
+  void followLink(href);
+}
+
+article.addEventListener("click", onLinkClick);
+dlgViewport.addEventListener("click", onLinkClick);
 
 /* —— Title bar / shortcuts —— */
 
@@ -618,6 +1231,7 @@ async function pickAndOpen() {
   try {
     const doc = await invoke("pick_file");
     if (doc) {
+      previewScroll.scrollTop = 0;
       showDocument(doc);
       try {
         prefs = (await invoke("get_prefs")) || prefs;
@@ -631,8 +1245,9 @@ async function pickAndOpen() {
   }
 }
 
-document.getElementById("btn-open").addEventListener("click", pickAndOpen);
-document.getElementById("btn-open-empty").addEventListener("click", pickAndOpen);
+$("btn-open").addEventListener("click", pickAndOpen);
+$("btn-open-empty").addEventListener("click", pickAndOpen);
+$("error-close").addEventListener("click", () => showError(null));
 
 btnOutline.addEventListener("click", async () => {
   if (isNarrow() && prefs.outlineOpen) {
@@ -650,10 +1265,10 @@ btnOutline.addEventListener("click", async () => {
   await savePrefs();
 });
 
-document.getElementById("btn-find").addEventListener("click", openFind);
-document.getElementById("find-close").addEventListener("click", closeFind);
-document.getElementById("find-next").addEventListener("click", () => findNext(1));
-document.getElementById("find-prev").addEventListener("click", () => findNext(-1));
+$("btn-find").addEventListener("click", openFind);
+$("find-close").addEventListener("click", closeFind);
+$("find-next").addEventListener("click", () => findNext(1));
+$("find-prev").addEventListener("click", () => findNext(-1));
 findInput.addEventListener("input", () => scheduleFind(findInput.value));
 findInput.addEventListener("keydown", (ev) => {
   if (ev.key === "Enter") {
@@ -664,14 +1279,11 @@ findInput.addEventListener("keydown", (ev) => {
   }
 });
 
-document.getElementById("btn-theme").addEventListener("click", async () => {
+$("btn-theme").addEventListener("click", async () => {
   prefs.theme = prefs.theme === "dark" ? "light" : "dark";
   applyPrefs();
   await savePrefs();
-  if (!article.hidden) {
-    resetMermaidHosts();
-    void renderMermaidDiagrams();
-  }
+  if (!article.hidden) void renderAllDiagrams();
 });
 
 async function setZoom(next) {
@@ -681,13 +1293,12 @@ async function setZoom(next) {
   await savePrefs();
 }
 
-zoomLabel.addEventListener("click", async () => {
-  await setZoom(1);
-});
-btnZoomIn.addEventListener("click", () => setZoom((prefs.zoom || 1) + 0.1));
-btnZoomOut.addEventListener("click", () => setZoom((prefs.zoom || 1) - 0.1));
+zoomLabel.addEventListener("click", () => setZoom(1));
+$("btn-zoom-in").addEventListener("click", () => setZoom((prefs.zoom || 1) + 0.1));
+$("btn-zoom-out").addEventListener("click", () => setZoom((prefs.zoom || 1) - 0.1));
 
 window.addEventListener("keydown", (ev) => {
+  if (dialog.open) return;
   const mod = ev.ctrlKey || ev.metaKey;
   if (mod && ev.key.toLowerCase() === "o") {
     ev.preventDefault();
@@ -714,8 +1325,7 @@ window.addEventListener("keydown", (ev) => {
 function onResizePointerMove(ev) {
   if (!resizing) return;
   const bounds = main.getBoundingClientRect();
-  const width = clampSidebarWidth(ev.clientX - bounds.left);
-  prefs.sidebarWidth = width;
+  prefs.sidebarWidth = clampSidebarWidth(ev.clientX - bounds.left);
   applySidebarWidth();
 }
 
@@ -739,14 +1349,10 @@ resizer.addEventListener("pointerdown", (ev) => {
 
 resizer.addEventListener("keydown", (ev) => {
   const step = ev.shiftKey ? 20 : 10;
-  if (ev.key === "ArrowLeft") {
+  if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
     ev.preventDefault();
-    prefs.sidebarWidth = clampSidebarWidth(prefs.sidebarWidth - step);
-    applySidebarWidth();
-    savePrefs();
-  } else if (ev.key === "ArrowRight") {
-    ev.preventDefault();
-    prefs.sidebarWidth = clampSidebarWidth(prefs.sidebarWidth + step);
+    const dir = ev.key === "ArrowLeft" ? -1 : 1;
+    prefs.sidebarWidth = clampSidebarWidth(prefs.sidebarWidth + dir * step);
     applySidebarWidth();
     savePrefs();
   }
@@ -757,6 +1363,7 @@ previewScroll.addEventListener("scroll", onPreviewScroll, { passive: true });
 window.addEventListener("resize", () => {
   applyPrefs();
   updateActiveHeading();
+  updateProgress();
 });
 
 /* —— Boot —— */
@@ -767,7 +1374,7 @@ async function boot() {
   } catch (_) {
     /* defaults */
   }
-  prefs.sidebarWidth = clampSidebarWidth(prefs.sidebarWidth ?? 240);
+  prefs.sidebarWidth = clampSidebarWidth(prefs.sidebarWidth ?? 248);
   prefs.recent = Array.isArray(prefs.recent) ? prefs.recent : [];
   applyPrefs();
   updateStatus();

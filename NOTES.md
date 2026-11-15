@@ -25,10 +25,12 @@ markdown-look/                    # Cargo workspace
 │   ├── index.html                # titlebar, outline, reader, statusbar
 │   ├── main.js                   # IPC, TOC, find, zoom, Mermaid, prefs
 │   ├── styles/
-│   │   ├── chrome.css
-│   │   ├── marktext-preview.css
-│   │   └── hljs-marktext.css
-│   ├── fonts/OpenSans-*.woff2
+│   │   ├── fonts.css             # @font-face (latin, latin-ext, vietnamese subsets)
+│   │   ├── chrome.css            # tokens, titlebar, outline line, find, statusbar
+│   │   ├── article.css           # cột đọc, heading, bảng, code
+│   │   ├── diagram.css           # Mermaid: pan/zoom, source, full window
+│   │   └── hljs-theme.css
+│   ├── fonts/                    # BeVietnamPro-*.woff2, JetBrainsMono-*-wght.woff2
 │   └── vendor/                   # highlight.min.js, mermaid.min.js (local)
 ├── tests/fixtures/               # sample.md, huong-dan.md, mermaid-sample.md
 └── src-tauri/
@@ -81,13 +83,15 @@ markdown-look/                    # Cargo workspace
 
 ### Stack
 
-Tauri 2 · WebView2 · pulldown-cmark · ammonia · notify · vanilla UI · highlight.js · Mermaid · Open Sans
+Tauri 2 · WebView2 · pulldown-cmark · ammonia · notify · vanilla UI · highlight.js · Mermaid · Be Vietnam Pro · JetBrains Mono
 
 ---
 
 ## UI / UX đã làm
 
-- Chrome kiểu MarkText: titlebar, outline có thể resize, empty state + recent files, find, theme, zoom.
+- Redesign 2026-11-15 (thay giao diện MarkText): hệ biển chỉ dẫn nhà ga. Outline là một tuyến tàu với các ga, tô vermilion tới mục đang đọc; status bar có vạch tiến độ + "n / N". Bảng kiểu timetable. Hướng thiết kế: `.impeccable/brief-reader.md`, hệ token: `DESIGN.md`.
+- Mermaid: theme `base` khớp palette, `securityLevel: "antiscript"` để `click` link hoạt động (script vẫn bị loại). Diagram inline không thu nhỏ dưới 68% (chữ còn đọc được); khi bị cắt sẽ hiện nút mở full window.
+- Titlebar, outline có thể resize, empty state + recent files, find, theme, zoom.
 - Outline toggle: thu về một cột grid (tránh `display:none` làm `#reader` mất bề rộng).
 - TOC scroll-spy (kể cả khi cuộn tới cuối trang).
 - Statusbar dính đáy (chuỗi flex height + padding article hợp lý).

@@ -1,6 +1,6 @@
 # markdown-look
 
-A lightweight **read-only** Markdown previewer for Windows. Rust parses Markdown once (`pulldown-cmark` → sanitized HTML + outline); a Tauri 2 WebView2 window renders it with MarkText-inspired CSS and Open Sans.
+A lightweight **read-only** Markdown previewer for Windows. Rust parses Markdown once (`pulldown-cmark` → sanitized HTML + outline); a Tauri 2 WebView2 window renders it in a calm reading column set in Be Vietnam Pro, with code in JetBrains Mono.
 
 ## Requirements
 
@@ -30,9 +30,12 @@ Architecture, decisions, and icon notes: see [NOTES.md](./NOTES.md).
 
 ## Features
 
-- GFM tables, task lists, strikethrough, footnotes, fenced code (local highlight.js)
-- Mermaid diagrams (` ```mermaid ` fences; local `mermaid.min.js`, follows light/dark theme)
-- Outline sidebar with stable heading ids (same ids in HTML and outline)
+- GFM tables, task lists, strikethrough, footnotes, fenced code (local highlight.js, language label, copy button)
+- Mermaid diagrams (` ```mermaid ` fences; local `mermaid.min.js`, themed to match light/dark):
+  pan by dragging, Ctrl+scroll or toolbar to zoom, double-click to fit, Diagram/Source toggle,
+  full-window view, and `click` links inside diagrams (external URLs, relative `.md`, `#anchors`)
+- Outline drawn as a line with stations, filled up to the section you are reading; stable heading ids
+- Reading progress line on the status bar with current section and position
 - Find with match count (CSS Custom Highlight API)
 - External links open in the system browser; relative `.md` links open in-app
 - File watch reload (~150 ms debounce) with scroll-position restore
@@ -52,4 +55,4 @@ The previous egui build is preserved at `../markdown-look-egui-final/`.
 
 ## License
 
-MIT. Open Sans font files are under the SIL Open Font License (see `ui/fonts/OFL.txt`).
+MIT. Be Vietnam Pro and JetBrains Mono font files are under the SIL Open Font License (see `ui/fonts/OFL.txt`).

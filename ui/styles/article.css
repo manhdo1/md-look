@@ -1,0 +1,465 @@
+/* Reading column: calm, ~72ch measure; tables set like timetables. */
+
+html[data-theme="light"] {
+  --code-bg: oklch(97.2% 0.004 258);
+  --code-head: oklch(95.2% 0.005 258);
+  --inline-code-bg: oklch(95.4% 0.006 258);
+  --inline-code-fg: oklch(36% 0.06 290);
+  --mark-bg: oklch(93% 0.09 95);
+  --find-bg: oklch(91% 0.12 95);
+  --find-current-bg: oklch(78% 0.17 70);
+}
+
+html[data-theme="dark"] {
+  --code-bg: oklch(17.2% 0.012 258);
+  --code-head: oklch(22.4% 0.013 258);
+  --inline-code-bg: oklch(26.5% 0.014 258);
+  --inline-code-fg: oklch(83% 0.07 300);
+  --mark-bg: oklch(42% 0.08 90);
+  --find-bg: oklch(45% 0.09 85);
+  --find-current-bg: oklch(72% 0.16 70);
+}
+
+:root {
+  --zoom: 1;
+}
+
+#article {
+  max-width: calc(46rem * var(--zoom) + 112px);
+  margin: 0 auto;
+  padding: 44px 56px 96px;
+  font-family: var(--font-ui);
+  font-size: calc(16px * var(--zoom));
+  line-height: 1.72;
+  color: var(--ink);
+  font-feature-settings: "kern", "liga", "calt";
+  overflow-wrap: break-word;
+}
+
+#article > :not(.diagram):not(.code-block):not(.table-wrap):not(h2) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.5rem;
+}
+
+#article > :first-child {
+  margin-top: 0;
+}
+
+/* —— Headings —— */
+
+#article h1,
+#article h2,
+#article h3,
+#article h4,
+#article h5,
+#article h6 {
+  color: var(--ink-strong);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  scroll-margin-top: 24px;
+}
+
+#article h1 {
+  margin: 0.2em 0 0.7em;
+  font-size: 2.25em;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+/* Section openers: a station sign on a hairline. */
+#article h2 {
+  position: relative;
+  margin: 2.2em 0 0.65em;
+  padding-top: 0.9em;
+  font-size: 1.5em;
+  letter-spacing: -0.02em;
+  border-top: 1px solid var(--rule);
+}
+
+#article h2::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2.5px solid var(--line);
+}
+
+#article h1 + h2 {
+  margin-top: 1.2em;
+}
+
+#article h3 {
+  margin: 1.9em 0 0.5em;
+  font-size: 1.22em;
+  font-weight: 600;
+}
+
+#article h4 {
+  margin: 1.6em 0 0.4em;
+  font-size: 1.06em;
+  font-weight: 600;
+}
+
+#article h5,
+#article h6 {
+  margin: 1.5em 0 0.4em;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+#article h6 {
+  color: var(--muted);
+}
+
+/* —— Text blocks —— */
+
+#article p,
+#article ul,
+#article ol,
+#article dl,
+#article blockquote,
+#article .table-wrap,
+#article .code-block,
+#article .diagram,
+#article details {
+  margin: 0 0 1.1em;
+}
+
+#article strong {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+#article em {
+  font-style: italic;
+}
+
+#article del {
+  color: var(--muted);
+  text-decoration-color: color-mix(in oklch, var(--muted) 70%, transparent);
+}
+
+#article mark {
+  background: var(--mark-bg);
+  color: inherit;
+  padding: 0 0.15em;
+  border-radius: 3px;
+}
+
+#article a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in oklch, var(--link) 35%, transparent);
+  text-underline-offset: 0.22em;
+  transition: text-decoration-color 120ms;
+}
+
+#article a:hover {
+  text-decoration-color: currentColor;
+}
+
+#article ul,
+#article ol {
+  padding-left: 1.5em;
+}
+
+#article li {
+  margin: 0.3em 0;
+  padding-left: 0.2em;
+}
+
+#article li > ul,
+#article li > ol {
+  margin: 0.3em 0 0.4em;
+}
+
+#article ul > li::marker {
+  color: var(--faint);
+}
+
+#article ol > li::marker {
+  color: var(--muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+#article li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.4em;
+}
+
+#article input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.5em 0 0;
+  vertical-align: -0.12em;
+  accent-color: var(--line);
+}
+
+#article blockquote {
+  padding: 0.1em 0 0.1em 1.2em;
+  margin-left: 0;
+  margin-right: 0;
+  color: var(--muted);
+  border-left: 2px solid var(--rule-strong);
+}
+
+#article blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+#article hr {
+  height: 0;
+  margin: 2.4em 0;
+  border: none;
+  border-top: 1px solid var(--rule-strong);
+}
+
+#article img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+#article sup,
+#article sub {
+  line-height: 0;
+}
+
+#article .footnote-definition {
+  display: flex;
+  gap: 0.6em;
+  margin: 0.4em 0;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+#article :not(.footnote-definition) + .footnote-definition {
+  margin-top: 2.4em;
+  padding-top: 1em;
+  border-top: 1px solid var(--rule);
+}
+
+#article .footnote-definition p {
+  margin: 0;
+}
+
+#article .footnote-definition-label {
+  flex: none;
+  min-width: 1.4em;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  vertical-align: baseline;
+  font-variant-numeric: tabular-nums;
+  color: var(--line-ink);
+}
+
+#article .footnote-definition-label::after {
+  content: ".";
+}
+
+/* —— Code —— */
+
+#article code,
+#article kbd,
+#article samp {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+#article :not(pre) > code {
+  padding: 0.12em 0.38em;
+  font-size: 0.86em;
+  color: var(--inline-code-fg);
+  background: var(--inline-code-bg);
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+}
+
+#article a > code {
+  color: inherit;
+}
+
+#article .code-block {
+  position: relative;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--code-bg);
+  overflow: hidden;
+}
+
+#article .block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 32px;
+  padding: 0 4px 0 14px;
+  background: var(--code-head);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+}
+
+#article .block-lang {
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+
+#article .code-block:not(.has-lang) .block-head {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+#article .code-block:not(.has-lang):hover .block-head,
+#article .code-block:not(.has-lang):focus-within .block-head {
+  opacity: 1;
+}
+
+.text-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+
+.text-btn .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.text-btn:hover {
+  background: var(--hover);
+  color: var(--ink-strong);
+}
+
+.text-btn.done {
+  color: var(--line-ink);
+}
+
+#article pre {
+  margin: 0;
+  padding: 14px 16px 16px;
+  overflow-x: auto;
+  font-size: 0.84em;
+  line-height: 1.65;
+  tab-size: 4;
+  background: transparent;
+}
+
+#article pre code {
+  padding: 0;
+  font-size: inherit;
+  background: transparent;
+  color: var(--ink);
+  white-space: pre;
+}
+
+/* —— Tables (timetable) —— */
+
+#article .table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
+#article table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+
+#article th,
+#article td {
+  padding: 0.55em 0.9em;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rule);
+}
+
+#article th:first-child,
+#article td:first-child {
+  padding-left: 0.2em;
+}
+
+#article th:last-child,
+#article td:last-child {
+  padding-right: 0.2em;
+}
+
+#article th {
+  font-weight: 600;
+  font-size: 0.92em;
+  color: var(--ink-strong);
+  border-bottom: 2px solid var(--ink-strong);
+  white-space: nowrap;
+}
+
+#article tbody tr:hover td {
+  background: color-mix(in oklch, var(--hover) 70%, transparent);
+}
+
+#article th[align="right"],
+#article td[align="right"] {
+  text-align: right;
+}
+
+#article th[align="center"],
+#article td[align="center"] {
+  text-align: center;
+}
+
+#article ::selection {
+  background: color-mix(in oklch, var(--line) 24%, transparent);
+}
+
+::highlight(md-find) {
+  background-color: var(--find-bg);
+  color: inherit;
+}
+
+::highlight(md-find-current) {
+  background-color: var(--find-current-bg);
+  color: oklch(15% 0.02 260);
+}
+
+@media (max-width: 760px) {
+  #article {
+    padding: 28px 22px 72px;
+  }
+
+  #article h1 {
+    font-size: 1.9em;
+  }
+}

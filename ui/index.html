@@ -4,14 +4,74 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>markdown-look</title>
+    <link rel="stylesheet" href="styles/fonts.css" />
     <link rel="stylesheet" href="styles/chrome.css" />
-    <link rel="stylesheet" href="styles/marktext-preview.css" />
-    <link rel="stylesheet" href="styles/hljs-marktext.css" />
+    <link rel="stylesheet" href="styles/article.css" />
+    <link rel="stylesheet" href="styles/diagram.css" />
+    <link rel="stylesheet" href="styles/hljs-theme.css" />
   </head>
   <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="i-outline" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M4 2.5v11" />
+          <circle cx="4" cy="4" r="1.9" fill="currentColor" />
+          <circle cx="4" cy="12" r="1.9" fill="currentColor" />
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 4h6M8 8h4.5M8 12h6" />
+        </symbol>
+        <symbol id="i-open" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M1.75 4.25c0-.83.67-1.5 1.5-1.5h3l1.5 1.75h5c.83 0 1.5.67 1.5 1.5v6.25c0 .83-.67 1.5-1.5 1.5h-9.5c-.83 0-1.5-.67-1.5-1.5v-8z" />
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 16 16">
+          <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M10.5 10.5l3.5 3.5" />
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 16 16">
+          <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9" />
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z" />
+        </symbol>
+        <symbol id="i-up" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M4 10l4-4 4 4" />
+        </symbol>
+        <symbol id="i-down" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M4 6l4 4 4-4" />
+        </symbol>
+        <symbol id="i-close" viewBox="0 0 16 16">
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 16 16">
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 3.5v9M3.5 8h9" />
+        </symbol>
+        <symbol id="i-minus" viewBox="0 0 16 16">
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M3.5 8h9" />
+        </symbol>
+        <symbol id="i-fit" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.5 5.5v-3h3M10.5 2.5h3v3M13.5 10.5v3h-3M5.5 13.5h-3v-3" />
+        </symbol>
+        <symbol id="i-expand" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M9.5 2.5h4v4M13.5 2.5L9 7M6.5 13.5h-4v-4M2.5 13.5L7 9" />
+        </symbol>
+        <symbol id="i-copy" viewBox="0 0 16 16">
+          <rect x="5.25" y="5.25" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M10.75 3.25v-.5c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h.5" />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 16 16">
+          <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M3 8.5l3.25 3.25L13 5" />
+        </symbol>
+        <symbol id="i-alert" viewBox="0 0 16 16">
+          <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 4.75v3.75" />
+          <circle cx="8" cy="11" r=".9" fill="currentColor" />
+        </symbol>
+      </defs>
+    </svg>
+
     <div id="app">
       <header id="titlebar">
-        <div id="titlebar-left">
+        <div class="titlebar-group">
           <button
             type="button"
             id="btn-outline"
@@ -20,29 +80,16 @@
             aria-label="Toggle outline"
             aria-pressed="true"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M2 3h12v1.5H2V3zm0 4.25h12v1.5H2v-1.5zm0 4.25h8V13H2v-1.5z"
-              />
-            </svg>
+            <svg class="icon" aria-hidden="true"><use href="#i-outline" /></svg>
           </button>
         </div>
-        <span id="path-label" title=""></span>
-        <div id="titlebar-actions">
-          <button
-            type="button"
-            id="btn-open"
-            class="icon-btn"
-            title="Open (Ctrl+O)"
-            aria-label="Open file"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.379a1.5 1.5 0 0 1 1.06.44l1.122 1.12H13A1.5 1.5 0 0 1 14.5 4.5v8A1.5 1.5 0 0 1 13 14H3A1.5 1.5 0 0 1 1.5 12.5V3zm1.5-.1a.1.1 0 0 0-.1.1v9.5c0 .055.045.1.1.1h10a.1.1 0 0 0 .1-.1v-8a.1.1 0 0 0-.1-.1H8.06a1 1 0 0 1-.707-.293L6.232 2.9H3z"
-              />
-            </svg>
+        <div id="doc-title" title="">
+          <span id="path-label"></span>
+          <span id="path-dir"></span>
+        </div>
+        <div class="titlebar-group">
+          <button type="button" id="btn-open" class="icon-btn" title="Open (Ctrl+O)" aria-label="Open file">
+            <svg class="icon" aria-hidden="true"><use href="#i-open" /></svg>
           </button>
           <button
             type="button"
@@ -51,54 +98,34 @@
             title="Find (Ctrl+F)"
             aria-label="Find in document"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M11.5 6.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0zm-.82 4.74a6.5 6.5 0 1 1 1.06-1.06l3.04 3.04a.75.75 0 1 1-1.06 1.06l-3.04-3.04z"
-              />
-            </svg>
+            <svg class="icon" aria-hidden="true"><use href="#i-search" /></svg>
           </button>
           <button
             type="button"
             id="btn-theme"
             class="icon-btn"
-            title="Toggle theme"
-            aria-label="Toggle light and dark theme"
+            title="Switch light / dark"
+            aria-label="Switch light and dark theme"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM8 13A5 5 0 0 1 8 3v10z"
-              />
-            </svg>
+            <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun" /></svg>
+            <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon" /></svg>
           </button>
         </div>
       </header>
 
-      <div id="error-banner" role="alert"></div>
-
-      <div id="find-bar" hidden>
-        <input
-          id="find-input"
-          type="search"
-          placeholder="Find in document…"
-          autocomplete="off"
-          aria-label="Find in document"
-        />
-        <span id="find-count" aria-live="polite"></span>
-        <button type="button" id="find-prev" title="Previous match" aria-label="Previous match">
-          Prev
-        </button>
-        <button type="button" id="find-next" title="Next match" aria-label="Next match">Next</button>
-        <button type="button" id="find-close" title="Close find" aria-label="Close find">
-          Close
+      <div id="error-banner" role="alert">
+        <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
+        <span id="error-text"></span>
+        <button type="button" id="error-close" class="icon-btn" aria-label="Dismiss error">
+          <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
         </button>
       </div>
 
       <div id="main">
         <aside id="sidebar" aria-label="Document outline">
-          <h2>Outline</h2>
-          <ul id="outline-list"></ul>
+          <h2 id="outline-heading">Outline</h2>
+          <ol id="outline-list"></ol>
+          <p id="outline-empty" hidden>No headings in this document.</p>
         </aside>
         <div
           id="resizer"
@@ -108,62 +135,111 @@
           tabindex="0"
         ></div>
         <div id="reader">
+          <div id="find-bar" role="search" hidden>
+            <svg class="icon find-icon" aria-hidden="true"><use href="#i-search" /></svg>
+            <input
+              id="find-input"
+              type="search"
+              placeholder="Find in document"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Find in document"
+            />
+            <span id="find-count" aria-live="polite"></span>
+            <button type="button" id="find-prev" class="icon-btn" title="Previous match (Shift+Enter)" aria-label="Previous match">
+              <svg class="icon" aria-hidden="true"><use href="#i-up" /></svg>
+            </button>
+            <button type="button" id="find-next" class="icon-btn" title="Next match (Enter)" aria-label="Next match">
+              <svg class="icon" aria-hidden="true"><use href="#i-down" /></svg>
+            </button>
+            <button type="button" id="find-close" class="icon-btn" title="Close (Esc)" aria-label="Close find">
+              <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
+            </button>
+          </div>
+
           <div id="preview-scroll">
             <div id="empty" class="visible">
-              <div class="empty-card">
-                <p class="empty-title">No file open</p>
-                <p class="empty-hint">Open a Markdown file, or drop one here.</p>
-                <button type="button" id="btn-open-empty" class="primary-btn">Open file</button>
-                <div id="recent" hidden>
-                  <h3>Recent files</h3>
+              <div class="empty-inner">
+                <svg class="empty-line" viewBox="0 0 220 28" aria-hidden="true" focusable="false">
+                  <path d="M6 14h208" />
+                  <circle cx="14" cy="14" r="7" class="empty-terminus" />
+                  <circle cx="80" cy="14" r="4" />
+                  <circle cx="140" cy="14" r="4" />
+                  <circle cx="206" cy="14" r="7" class="empty-terminus" />
+                </svg>
+                <h1 class="empty-title">Open a Markdown file</h1>
+                <p class="empty-hint">
+                  Drop a <code>.md</code> file anywhere in this window, or press
+                  <kbd>Ctrl</kbd> <kbd>O</kbd>.
+                </p>
+                <button type="button" id="btn-open-empty" class="primary-btn">
+                  <svg class="icon" aria-hidden="true"><use href="#i-open" /></svg>
+                  Open file
+                </button>
+                <section id="recent" hidden>
+                  <h2>Recent</h2>
                   <ul id="recent-list"></ul>
-                </div>
+                </section>
               </div>
             </div>
             <article id="article" hidden></article>
           </div>
-          <footer id="statusbar">
-            <div id="status-left">
-              <span id="status-format" class="status-chip">Markdown</span>
-              <span id="status-hint" class="status-muted"></span>
-            </div>
-            <div id="status-right">
-              <div id="zoom-group" role="group" aria-label="Zoom">
-                <button
-                  type="button"
-                  id="btn-zoom-out"
-                  class="status-btn"
-                  title="Zoom out (Ctrl+-)"
-                  aria-label="Zoom out"
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  id="zoom-label"
-                  class="status-btn status-zoom"
-                  title="Reset zoom (Ctrl+0)"
-                  aria-label="Zoom level, click to reset"
-                >
-                  100%
-                </button>
-                <button
-                  type="button"
-                  id="btn-zoom-in"
-                  class="status-btn"
-                  title="Zoom in (Ctrl+=)"
-                  aria-label="Zoom in"
-                >
-                  +
-                </button>
-              </div>
-              <span class="status-sep" aria-hidden="true"></span>
-              <span id="word-count" class="status-muted"></span>
-            </div>
-          </footer>
         </div>
       </div>
+
+      <footer id="statusbar">
+        <div id="status-left">
+          <span id="status-section" class="status-text"></span>
+        </div>
+        <div id="status-right">
+          <span id="word-count" class="status-text"></span>
+          <span id="read-progress" class="status-text"></span>
+          <div id="zoom-group" role="group" aria-label="Text size">
+            <button type="button" id="btn-zoom-out" class="status-btn" title="Smaller text (Ctrl+-)" aria-label="Smaller text">
+              <svg class="icon" aria-hidden="true"><use href="#i-minus" /></svg>
+            </button>
+            <button
+              type="button"
+              id="zoom-label"
+              class="status-btn status-zoom"
+              title="Reset text size (Ctrl+0)"
+              aria-label="Text size, click to reset"
+            >
+              100%
+            </button>
+            <button type="button" id="btn-zoom-in" class="status-btn" title="Larger text (Ctrl+=)" aria-label="Larger text">
+              <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
+
+    <dialog id="diagram-dialog" aria-label="Diagram">
+      <div class="dlg-bar">
+        <span class="dlg-title">Diagram</span>
+        <div class="dg-tools">
+          <button type="button" class="icon-btn" data-act="zoom-out" title="Zoom out (-)" aria-label="Zoom out">
+            <svg class="icon" aria-hidden="true"><use href="#i-minus" /></svg>
+          </button>
+          <button type="button" class="dg-zoom" data-act="reset" title="Actual size (0)" aria-label="Zoom level, click for actual size">100%</button>
+          <button type="button" class="icon-btn" data-act="zoom-in" title="Zoom in (+)" aria-label="Zoom in">
+            <svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg>
+          </button>
+          <button type="button" class="icon-btn" data-act="fit" title="Fit to window (F)" aria-label="Fit to window">
+            <svg class="icon" aria-hidden="true"><use href="#i-fit" /></svg>
+          </button>
+          <span class="dg-sep" aria-hidden="true"></span>
+          <button type="button" class="icon-btn" data-act="close" title="Close (Esc)" aria-label="Close diagram">
+            <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
+          </button>
+        </div>
+      </div>
+      <div class="dg-viewport dlg-viewport" tabindex="-1" autofocus>
+        <div class="dg-canvas"></div>
+      </div>
+      <p class="dlg-hint">Scroll to zoom · drag to pan · double-click to fit</p>
+    </dialog>
 
     <script src="vendor/highlight.min.js"></script>
     <script src="vendor/mermaid.min.js"></script>
