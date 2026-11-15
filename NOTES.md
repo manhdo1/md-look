@@ -163,14 +163,6 @@ Gợi ý tự kiểm: light/dark, outline toggle, find, zoom, drop file, reload 
 
 ---
 
-## Việc còn mở (optional)
-
-- [ ] `fileAssociations` trong bundle để gắn mặc định mở `.md` (hiện vẫn “Open with” thủ công).
-- [ ] Đồng bộ README nếu path binary / icon còn lệch với NOTES này.
-- [ ] Cân nhắc `set_icon` runtime trên Windows nếu gặp máy vẫn cache icon cũ sau rebuild.
-
----
-
 ## Lệnh icon nhanh (cheat sheet)
 
 ```bash
