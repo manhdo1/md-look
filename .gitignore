@@ -29,3 +29,6 @@ Thumbs.db
 
 # Local release artifacts
 /dist/
+
+# Impeccable design-session scratch (not app source)
+.impeccable/
