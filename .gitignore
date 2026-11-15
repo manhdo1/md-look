@@ -1,0 +1,28 @@
+# Build
+/target/
+src-tauri/target/
+
+# Tauri generated (local)
+src-tauri/gen/
+
+# Leftover / temp icon sources (canonical source: markdown-512px.png)
+src-tauri/app-icon.png
+app-icon.png
+app-icon.svg
+Markdown_dark.svg
+Markdown_light.svg
+
+# Optional mobile icon sets (Windows-focused; regenerate via `cargo tauri icon`)
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
+# Junk
+**/*.rs.bk
+.DS_Store
+Thumbs.db
+.tmp/
+*.log
+.idea/
+.vscode/
+*.swp
+*~
