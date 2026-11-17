@@ -283,6 +283,14 @@ html[data-theme="dark"] .icon-sun {
   border-radius: 0 0 1px 1px;
 }
 
+.tab-changed {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
 .tab-label {
   flex: 1;
   min-width: 0;
@@ -360,6 +368,13 @@ html[data-theme="dark"] .icon-sun {
 
 #error-banner .icon-btn {
   color: inherit;
+}
+
+#error-banner.warning {
+  background: var(--line-soft);
+  color: var(--line-ink);
+  border-bottom-color: color-mix(in oklch, var(--line) 35%, transparent);
+  border-left: 2px solid var(--line);
 }
 
 /* —— Layout —— */
@@ -907,6 +922,72 @@ html[data-theme="dark"] .primary-btn:hover {
   display: none;
 }
 
+/* Low-importance "updated" confirmation. Anchored to the status bar; no shadow. */
+.reload-toast {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  translate: -50% -50%;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  margin: 0;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklch, var(--line) 40%, var(--rule));
+  border-radius: 5px;
+  background: var(--ground);
+  color: var(--line-ink);
+  box-shadow: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+.reload-toast::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.reload-toast:popover-open {
+  display: flex;
+  position: fixed;
+  inset: auto auto 4px 50%;
+  top: auto;
+  width: max-content;
+  height: auto;
+  overflow: visible;
+  translate: -50% 0;
+}
+
+.reload-toast.visible {
+  display: flex;
+  opacity: 1;
+}
+
+@starting-style {
+  .reload-toast:popover-open.visible {
+    opacity: 0;
+  }
+}
+
+@supports not selector(:popover-open) {
+  .reload-toast {
+    display: flex;
+  }
+}
+
 #status-left,
 #status-right {
   display: flex;
@@ -1012,6 +1093,19 @@ html[data-theme="dark"] .primary-btn:hover {
   #word-count {
     display: none;
   }
+}
+
+/* Screen-reader text that stays out of the station layout. */
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

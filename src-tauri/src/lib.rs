@@ -49,6 +49,7 @@ pub fn run() {
         .setup(move |app| {
             let prefs = prefs::load(app.handle());
             let state = AppState::new(prefs);
+            state.bind_watcher(app.handle().clone());
             state.push_pending(cli_paths);
             app.manage(state);
 
@@ -68,6 +69,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::open_file,
             commands::reload,
+            commands::check_changed,
             commands::close_file,
             commands::set_active,
             commands::get_prefs,

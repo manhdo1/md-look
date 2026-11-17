@@ -1,6 +1,6 @@
 # markdown-look — Notes & Architecture
 
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 ## Mục tiêu
 
@@ -45,8 +45,8 @@ markdown-look/                    # Cargo workspace
         ├── lib.rs                # single-instance (đầu tiên), drop, commands
         ├── document.rs
         ├── html.rs
-        ├── commands.rs           # open / reload / close / prefs / pick / asset
-        ├── watch.rs              # WatchHub: 1 watcher, nhiều path, debounce 150ms
+        ├── commands.rs           # open / reload / check_changed / close / prefs / pick / asset
+        ├── watch.rs              # WatchHub: 1 watcher, nhiều path, debounce 150ms, doc-changed {path, missing}
         └── prefs.rs
 ```
 
@@ -59,11 +59,19 @@ markdown-look/                    # Cargo workspace
   → open_file / reload(path)
        → document::load + html::render (pulldown-cmark → rewrite → ammonia)
        → allow asset dir của file (không forbid — forbid thắng allow trong Tauri)
-       → WatchHub.add(path)
+       → ghi fingerprint (mtime, len) chỉ khi open_file / reload thành công
+       → WatchHub.add(path)   # path đã normalize (dunce, không prefix \\?\, backslash Windows)
+  → file đổi trên đĩa
+       · notify → WatchHub debounce 150ms → emit doc-changed { path, missing }
+       · poll 2s chỉ tab active khi cửa sổ đang hiện; focus / hiện lại thì check_changed mọi tab
+         (vẫn reload nếu notify không bắn). check_changed chỉ so fingerprint, không ghi
+       · reload thử đọc lại sau 100 / 250 / 500ms; file vẫn mất → lỗi chứa "not found"
   → UI
        · mỗi tab một <article>; chỉ tab active gắn vào #preview-scroll
        · tab nền: giữ DOM tách (detached); LRU tối đa 6 DOM sống
-       · file đổi ở tab nền → chỉ đánh dấu stale; reload khi activate
+       · tab active đổi nội dung → reload, giữ scroll, toast "Đã cập nhật"
+       · tab nền → chấm trên tab + stale; reload khi mở lại
+       · file mất ("not found" / "missing") → giữ article cũ, banner cảnh báo
        · Mermaid: IntersectionObserver (gần viewport) + cache SVG theo theme+source
 ```
 
@@ -71,8 +79,9 @@ markdown-look/                    # Cargo workspace
 
 | Command | Vai trò |
 |---------|---------|
-| `open_file` | Render path, allow asset dir, WatchHub add, recent |
-| `reload` | Render lại theo `path` (giữ `force` đã lưu) |
+| `open_file` | Render path, allow asset dir, WatchHub add, recent; ghi fingerprint |
+| `reload` | Render lại theo `path` (giữ `force`). Thử lại 100 / 250 / 500ms; file vẫn mất → lỗi chứa `"not found"`. Thành công thì ghi lại fingerprint |
+| `check_changed` | Input `{ paths: string[] }`. Output `[{ path, missing }]` — chỉ file đang mở mà fingerprint đổi hoặc không còn trên đĩa. **Không** ghi fingerprint |
 | `close_file` | Giảm refcount; bỏ watch khi về 0 |
 | `set_active` | Đặt title cửa sổ (`{title} — markdown-look`) |
 | `get_prefs` / `set_prefs` | Đọc/ghi prefs |
@@ -85,7 +94,7 @@ markdown-look/                    # Cargo workspace
 | Event | Payload | Khi nào |
 |-------|---------|---------|
 | `open-paths` | (rỗng) | Có path mới trong `pending_paths` — UI gọi `take_pending_paths` |
-| `doc-changed` | `string` (path) | WatchHub debounce xong — UI reload tab active hoặc đánh dấu stale |
+| `doc-changed` | `{ path, missing }` | WatchHub debounce xong. UI cũng nhận string path cũ (coi `missing: false`). Tab active thì reload; tab nền thì chấm |
 
 ### Single-instance (Notepad-style)
 
@@ -126,27 +135,30 @@ Tauri 2 · WebView2 · pulldown-cmark · ammonia · notify · tauri-plugin-singl
 
 ```
 tabs: Map<id, Tab>
-  Tab = { id, path, title, el, outline, wordCount, scrollTop, force, stale }
+  Tab = { id, path, title, el, outline, wordCount, scrollTop, force, stale, changed, missing }
 order: string[]          # thứ tự tab
 activeId, lruOrder
 MAX_LIVE_TABS = 6        # DOM sống; tab ít dùng → evict el, đánh stale
 ```
 
-- Chuyển tab: detach article cũ (giữ scrollTop) → attach article mới (hoặc `reload` nếu stale/evicted).
-- Dedupe path (không phân biệt hoa thường trên Windows).
+- Chuyển tab: detach article cũ (giữ scrollTop) → attach article mới (hoặc `reload` nếu stale/evicted/missing).
+- `changed` → chấm `.tab-changed` trên tab nền; `missing` → banner, article cũ giữ nguyên.
+- Dedupe path: `samePath()` không phân biệt hoa thường và đổi `\` thành `/`. Không canonicalize lại trong JS.
 - Link `.md` nội bộ: `resolve_relative(base=active.path)` → `openPath` (tab mới / focus).
 
 ### Backend model
 
-- Frontend sở hữu danh sách tab; Rust giữ `docs` (refcount + force), `asset_dirs` (allow-only), `WatchHub`, `pending_paths`.
+- Frontend sở hữu danh sách tab; Rust giữ `docs` (refcount + force + fingerprint), `asset_dirs` (allow-only), `WatchHub`, `pending_paths`.
 - Asset: chỉ `allow_directory`, **không** `forbid` (trong Tauri forbid thắng allow → đổi tab khác thư mục rồi quay lại sẽ mất ảnh nếu vẫn forbid).
 
 ### WatchHub
 
-- Một `RecommendedWatcher` + một thread debounce.
-- Refcount theo thư mục (`NonRecursive`); target theo path file.
-- So khớp path đầy đủ, case-insensitive trên Windows; không `canonicalize` mỗi event (ổn với save kiểu delete+rename).
+- Một `RecommendedWatcher` + một thread debounce (150ms).
+- Refcount theo thư mục (`NonRecursive`); target theo path file đã `normalize_path` (`dunce::canonicalize`, bỏ prefix `\\?\`, backslash trên Windows).
+- So khớp event với target: thư mục sau lexical clean + tên file (case-fold, kể cả tiếng Việt). Không `canonicalize` mỗi event (ổn với save kiểu delete+rename). Callback nhận **target đã mở**, không phải path thô từ notify.
 - Timeout theo **thay đổi cũ nhất** trong pending (không để file khác trong cùng thư mục hoãn reload mãi).
+- `doc-changed` là `{ path, missing }`. `missing` khi target không còn trên đĩa lúc flush.
+- Fingerprint `(mtime, len)` nằm trong `docs`, không nằm trong hub. `check_changed` chỉ đọc; ghi lại sau `open_file` / `reload` thành công.
 
 ---
 
@@ -217,14 +229,18 @@ cargo tauri build
 ## Fixtures / kiểm thử
 
 - `tests/fixtures/sample.md`, `huong-dan.md`, `mermaid-sample.md`
-- Unit/smoke Rust (WatchHub refcount, resolve_relative, argv, fixtures)
+- Unit/smoke Rust (WatchHub, fingerprint `check_changed`, `doc-changed` `{ path, missing }`, reload retry, argv, fixtures)
 
-**Checklist tay (multi-tab + Mermaid):**
+**Checklist tay (multi-tab + live reload + Mermaid):**
 
 - [ ] Mở 2–3 file trong app (tab hiện từ file thứ 2)
 - [ ] Double-click `.md` khi app đang chạy → một cửa sổ, tab mới (cùng exe mới build)
 - [ ] Drop nhiều file; mở lại path đã mở → focus tab cũ
-- [ ] Sửa file tab nền → reload khi quay lại, giữ scroll
+- [ ] Sửa file ở tab đang xem (Notepad / Cursor) → toast "Đã cập nhật", giữ scroll
+- [ ] Sửa file tab nền → chấm trên tab; mở tab thì reload
+- [ ] Xoá file rồi khôi phục: banner, article cũ còn; file trở lại thì reload
+- [ ] F5 / Ctrl+R reload tab active, giữ scroll
+- [ ] Poll vẫn reload nếu notify không bắn (sửa file khi watcher im, cửa sổ đang hiện)
 - [ ] Ảnh ở thư mục khác nhau khi chuyển tab
 - [ ] File nhiều Mermaid: chuyển tab tức thì; cuộn mới vẽ dần; quay lại không vẽ lại
 - [ ] Đổi theme với nhiều tab; diagram lỗi cú pháp không làm chậm

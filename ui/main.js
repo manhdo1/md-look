@@ -25,6 +25,8 @@ const wordCountEl = $("word-count");
 const progressEl = $("read-progress");
 const sectionEl = $("status-section");
 const statusbar = $("statusbar");
+const reloadToast = $("reload-toast");
+const errorClose = $("error-close");
 const recentWrap = $("recent");
 const recentList = $("recent-list");
 const resizer = $("resizer");
@@ -41,6 +43,10 @@ const XLINK = "http://www.w3.org/1999/xlink";
 const INLINE_MIN_SCALE = 0.68;
 const MAX_LIVE_TABS = 6;
 const MAX_CLOSED_STACK = 10;
+const CHANGE_POLL_MS = 2000;
+const TOAST_MS = 2000;
+const DELETED_FILE_MSG =
+  "File đã bị xoá hoặc chuyển đi. Nội dung đang hiển thị là bản cũ.";
 
 let prefs = {
   theme: "light",
@@ -59,6 +65,15 @@ let narrowAutoCollapsed = false;
 let resizing = false;
 let activeHeadingId = null;
 let scrollRaf = 0;
+/** @type {Map<string, {again: boolean, toast: boolean, done: Promise<void>}>} */
+const reloads = new Map();
+let changePollTimer = 0;
+/** @type {{again: boolean, all: boolean, promise: Promise<void>} | null} */
+let changeCheck = null;
+let toastTimer = 0;
+let toastAfterDialog = false;
+/** Tab id whose deleted-file banner the reader dismissed, so the poll does not reopen it. */
+let deletedBannerMutedFor = null;
 
 /** @type {Map<string, object>} */
 const tabs = new Map();
@@ -127,7 +142,33 @@ function icon(name) {
 
 function showError(msg) {
   errorText.textContent = msg || "";
+  errorText.removeAttribute("lang");
+  errorBanner.classList.remove("warning");
+  errorBanner.setAttribute("role", "alert");
+  errorClose.setAttribute("aria-label", "Dismiss error");
   errorBanner.classList.toggle("visible", Boolean(msg));
+}
+
+function showDeletedBanner({ force = false } = {}) {
+  if (!force && deletedBannerMutedFor === activeId) return;
+  if (force) deletedBannerMutedFor = null;
+  errorBanner.classList.add("warning");
+  errorBanner.setAttribute("role", "status");
+  errorClose.setAttribute("aria-label", "Dismiss warning");
+  errorText.lang = "vi";
+  if (errorText.textContent !== DELETED_FILE_MSG) errorText.textContent = DELETED_FILE_MSG;
+  errorBanner.classList.add("visible");
+}
+
+function clearDeletedBanner() {
+  if (!errorBanner.classList.contains("warning")) return;
+  showError(null);
+}
+
+function isMissingFileError(err) {
+  const detail = err && typeof err === "object" && err.message ? err.message : err;
+  const msg = String(detail).toLowerCase();
+  return msg.includes("not found") || msg.includes("missing");
 }
 
 function clampSidebarWidth(w) {
@@ -245,17 +286,37 @@ function codeLanguage(code) {
   return cls ? cls.slice("language-".length) : "";
 }
 
+const HLJS_CACHE_MAX = 300;
+/** Highlighted markup per class list + source, most recently used last. */
+const hljsCache = new Map();
+
+/** Live reload re-renders the whole article; reuse markup for blocks that did not change. */
+function highlightCode(code) {
+  if (!window.hljs) return;
+  const key = `${code.className}\n${code.textContent ?? ""}`;
+  const cached = hljsCache.get(key);
+  if (cached) {
+    hljsCache.delete(key);
+    hljsCache.set(key, cached);
+    code.className = cached.className;
+    code.innerHTML = cached.html;
+    code.dataset.highlighted = "yes";
+    return;
+  }
+  try {
+    window.hljs.highlightElement(code);
+  } catch (_) {
+    /* unknown language */
+  }
+  hljsCache.set(key, { className: code.className, html: code.innerHTML });
+  if (hljsCache.size > HLJS_CACHE_MAX) hljsCache.delete(hljsCache.keys().next().value);
+}
+
 function enhanceCodeBlocks() {
   article.querySelectorAll("pre > code").forEach((code) => {
     if (isMermaidBlock(code)) return;
     const pre = code.parentElement;
-    if (window.hljs) {
-      try {
-        window.hljs.highlightElement(code);
-      } catch (_) {
-        /* unknown language */
-      }
-    }
+    highlightCode(code);
     const lang = codeLanguage(code);
     const wrap = document.createElement("div");
     wrap.className = "code-block" + (lang ? " has-lang" : "");
@@ -767,13 +828,14 @@ function buildDiagram(source) {
   });
 
   let lastWidth = 0;
-  new ResizeObserver(() => {
+  dg._ro = new ResizeObserver(() => {
     const width = viewport.clientWidth;
     if (!width || width === lastWidth || !pz.w) return;
     lastWidth = width;
     sizeViewport(dg);
     if (!pz.userMoved) pz.fit();
-  }).observe(viewport);
+  });
+  dg._ro.observe(viewport);
 
   return dg;
 }
@@ -836,6 +898,7 @@ function releaseDiagrams(root) {
   root?.querySelectorAll(".diagram").forEach((dg) => {
     diagramObserver.unobserve(dg);
     diagramQueue.delete(dg);
+    dg._ro?.disconnect();
   });
 }
 
@@ -918,6 +981,7 @@ async function openDiagramDialog(dg) {
   dlgTitle.textContent = kind ? `${kind[0].toUpperCase()}${kind.slice(1)} diagram` : "Diagram";
   dlgCanvas.innerHTML = "";
   dialog.showModal();
+  reloadToast?.classList.remove("visible");
   try {
     const size = await renderMermaidInto(dlgCanvas, source);
     if (!size) return;
@@ -931,6 +995,9 @@ async function openDiagramDialog(dg) {
 
 dialog.addEventListener("close", () => {
   dlgCanvas.innerHTML = "";
+  if (!toastAfterDialog) return;
+  toastAfterDialog = false;
+  setTimeout(() => showUpdatedToast(), 100);
 });
 
 dialog.querySelector(".dg-tools").addEventListener("click", (e) => {
@@ -1141,6 +1208,13 @@ function renderTabbar() {
     el.tabIndex = id === activeId ? 0 : -1;
     el.title = tab.path;
 
+    if (tab.changed) {
+      const dot = document.createElement("span");
+      dot.className = "tab-changed";
+      dot.setAttribute("aria-hidden", "true");
+      el.appendChild(dot);
+    }
+
     const label = document.createElement("span");
     label.className = "tab-label";
     label.textContent = name || tab.title || "untitled";
@@ -1160,6 +1234,14 @@ function renderTabbar() {
     close.setAttribute("aria-label", `Close ${name || "tab"}`);
     close.innerHTML = icon("close");
     el.appendChild(close);
+
+    if (tab.changed) {
+      const note = document.createElement("span");
+      note.className = "visually-hidden";
+      note.textContent = "Updated";
+      el.appendChild(note);
+    }
+
     tabbar.appendChild(el);
   }
 
@@ -1215,7 +1297,7 @@ async function activateTab(id, { restoreScroll = true } = {}) {
   if (!tabs.has(id)) return;
   const next = tabs.get(id);
   const prev = activeTab();
-  if (prev === next && next.el?.isConnected && !next.stale) return;
+  if (prev === next && next.el?.isConnected && !next.stale && !next.missing) return;
 
   if (prev && prev.id !== id) {
     clearFind();
@@ -1228,29 +1310,80 @@ async function activateTab(id, { restoreScroll = true } = {}) {
   activeId = id;
   touchLru(id);
 
-  if (!next.el || next.stale) {
-    let doc;
-    try {
-      doc = await invoke("reload", { path: next.path });
-    } catch (e) {
-      showError(String(e));
-      if (activeId === id && prev && prev !== next && tabs.has(prev.id)) {
-        activeId = null;
-        await activateTab(prev.id);
+  if (prev && prev !== next && prev.missing) {
+    markBackgroundChanged(prev);
+    clearDeletedBanner();
+  }
+
+  let keepError = false;
+  if (!next.el || next.stale || next.missing) {
+    const joined = reloads.get(id);
+    if (joined) await joined.done;
+
+    if (!tabs.has(id) || activeId !== id) return;
+
+    if (!next.el || next.stale || next.missing) {
+      let failed = null;
+      await withTabReload(next, { toast: false }, async () => {
+        if (!tabs.has(id) || activeId !== id) {
+          next.stale = true;
+          return;
+        }
+        try {
+          const doc = await invoke("reload", { path: next.path });
+          if (!tabs.has(id) || activeId !== id) {
+            next.stale = true;
+            markBackgroundChanged(next);
+            return;
+          }
+          failed = null;
+          const shown = article;
+          fillArticleFromDoc(next, doc);
+          if (activeId !== id) {
+            article = shown;
+            next.stale = true;
+            return;
+          }
+          next.missing = false;
+          clearTabChanged(next);
+          clearDeletedBanner();
+        } catch (e) {
+          if (!tabs.has(id)) return;
+          if (isMissingFileError(e)) {
+            failed = null;
+            next.missing = true;
+            next.stale = true;
+            return;
+          }
+          failed = e;
+        }
+      });
+
+      if (!tabs.has(id) || activeId !== id) return;
+
+      if (failed) {
+        showError(String(failed));
+        keepError = true;
+        if (prev && prev !== next && tabs.has(prev.id)) {
+          activeId = null;
+          await activateTab(prev.id);
+          return;
+        }
+        if (!next.el) return;
+      } else if (next.missing) {
+        if (!next.el) next.el = createArticleEl();
+        showDeletedBanner({ force: true });
       }
-      return;
-    }
-    const shown = article;
-    fillArticleFromDoc(next, doc);
-    if (activeId !== id) {
-      article = shown;
-      return;
     }
   }
 
   attachArticle(next);
   updateChromeForTab(next);
   renderOutline(next.outline || []);
+  if (!keepError) {
+    if (next.missing) showDeletedBanner({ force: true });
+    else clearDeletedBanner();
+  }
   refreshTabSelection();
   if (tabs.size >= 2) {
     if (tabbar.hidden || tabbar.childElementCount !== tabs.size) renderTabbar();
@@ -1401,6 +1534,8 @@ async function openPath(path, force = false, { activate = true } = {}) {
       scrollTop: 0,
       force: !!force,
       stale: false,
+      changed: false,
+      missing: false,
     };
 
     const insertAt = activeId ? order.indexOf(activeId) + 1 : order.length;
@@ -1506,29 +1641,251 @@ function restoreScrollAnchor(anchor) {
   updateProgress();
 }
 
-async function reloadKeepingScroll(path) {
+function markBackgroundChanged(tab) {
+  if (!tab || !tabs.has(tab.id)) return;
+  tab.stale = true;
+  if (tab.changed) return;
+  tab.changed = true;
+  renderTabbar();
+}
+
+function clearTabChanged(tab) {
+  if (!tab?.changed) return;
+  tab.changed = false;
+  renderTabbar();
+}
+
+function parseDocChanged(payload) {
+  if (typeof payload === "string") return { path: payload, missing: false };
+  if (payload && typeof payload.path === "string") {
+    return { path: payload.path, missing: payload.missing === true };
+  }
+  return null;
+}
+
+function onPathChanged(path, missing) {
+  const tab = findTabByPath(path);
+  if (!tab) return;
+  if (missing) {
+    const fresh = !tab.missing;
+    tab.missing = true;
+    tab.stale = true;
+    if (fresh && deletedBannerMutedFor === tab.id) deletedBannerMutedFor = null;
+    if (tab.id === activeId) showDeletedBanner();
+    else markBackgroundChanged(tab);
+    return;
+  }
+  if (deletedBannerMutedFor === tab.id) deletedBannerMutedFor = null;
+  tab.missing = false;
+  if (tab.id === activeId) void reloadKeepingScroll(tab.path, { toast: true });
+  else markBackgroundChanged(tab);
+}
+
+function formatUpdatedStamp() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `Đã cập nhật · ${hh}:${mm}`;
+}
+
+function showUpdatedToast() {
+  if (!reloadToast) return;
+  if (dialog.open) {
+    toastAfterDialog = true;
+    return;
+  }
+  const text = formatUpdatedStamp();
+  const canNotify = typeof reloadToast.ariaNotify === "function";
+  if (typeof reloadToast.showPopover === "function" && !reloadToast.matches(":popover-open")) {
+    try {
+      reloadToast.showPopover();
+    } catch (_) {
+      /* keep the in-bar fallback */
+    }
+  }
+  reloadToast.classList.add("visible");
+  if (canNotify) reloadToast.setAttribute("aria-live", "off");
+  else reloadToast.setAttribute("aria-live", "polite");
+  if (reloadToast.textContent === text) reloadToast.textContent = "";
+  reloadToast.textContent = text;
+  if (canNotify) {
+    try {
+      reloadToast.ariaNotify(text, { priority: "normal" });
+    } catch (_) {
+      reloadToast.setAttribute("aria-live", "polite");
+      reloadToast.textContent = "";
+      reloadToast.textContent = text;
+    }
+  }
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    reloadToast.classList.remove("visible");
+  }, TOAST_MS);
+}
+
+/**
+ * One reload at a time per tab. A second request sets `again` and the owner
+ * runs a single follow-up after the in-flight invoke finishes.
+ */
+function withTabReload(tab, { toast = false } = {}, body) {
+  const existing = reloads.get(tab.id);
+  if (existing) {
+    existing.again = true;
+    if (toast) existing.toast = true;
+    return existing.done;
+  }
+  let resolveDone;
+  const done = new Promise((resolve) => {
+    resolveDone = resolve;
+  });
+  const job = { again: false, toast: !!toast, done };
+  reloads.set(tab.id, job);
+  return (async () => {
+    try {
+      let followUp = false;
+      do {
+        const showToast = job.toast;
+        job.toast = false;
+        job.again = false;
+        // The watcher and the poll often report the same save; skip the second
+        // full render when the first reload already picked it up.
+        if (followUp && !(await hasPendingChange(tab))) break;
+        followUp = true;
+        await body({ toast: showToast });
+      } while (job.again && tabs.has(tab.id) && tab.id === activeId);
+      if (job.again && tabs.has(tab.id)) markBackgroundChanged(tab);
+    } finally {
+      reloads.delete(tab.id);
+      resolveDone();
+    }
+  })();
+}
+
+async function hasPendingChange(tab) {
+  try {
+    const changed = await invoke("check_changed", { paths: [tab.path] });
+    return !Array.isArray(changed) || changed.length > 0;
+  } catch (_) {
+    return true;
+  }
+}
+
+async function reloadKeepingScroll(path, { toast = false } = {}) {
   const tab = path ? findTabByPath(path) : activeTab();
   if (!tab) return;
 
   if (tab.id !== activeId) {
-    tab.stale = true;
+    markBackgroundChanged(tab);
     return;
   }
 
-  const anchor = captureScrollAnchor();
-  try {
-    const doc = await invoke("reload", { path: tab.path });
-    if (tab.id !== activeId || !tabs.has(tab.id)) {
+  await withTabReload(tab, { toast }, async ({ toast: showToast }) => {
+    if (!tabs.has(tab.id) || tab.id !== activeId) {
       tab.stale = true;
       return;
     }
-    const rendered = applyDocToActiveTab(doc);
-    requestAnimationFrame(() => restoreScrollAnchor(anchor));
-    await rendered;
-    requestAnimationFrame(() => restoreScrollAnchor(anchor));
-  } catch (e) {
-    showError(String(e));
+    const anchor = captureScrollAnchor();
+    try {
+      const doc = await invoke("reload", { path: tab.path });
+      if (!tabs.has(tab.id)) return;
+      if (tab.id !== activeId) {
+        tab.stale = true;
+        markBackgroundChanged(tab);
+        return;
+      }
+      tab.missing = false;
+      const rendered = applyDocToActiveTab(doc);
+      clearTabChanged(tab);
+      requestAnimationFrame(() => restoreScrollAnchor(anchor));
+      await rendered;
+      requestAnimationFrame(() => restoreScrollAnchor(anchor));
+      if (showToast) showUpdatedToast();
+    } catch (e) {
+      if (!tabs.has(tab.id)) return;
+      if (isMissingFileError(e)) {
+        tab.missing = true;
+        tab.stale = true;
+        if (tab.id === activeId) showDeletedBanner({ force: true });
+        else markBackgroundChanged(tab);
+        return;
+      }
+      if (tab.id === activeId) showError(String(e));
+    }
+  });
+}
+
+function startChangePoll() {
+  if (changePollTimer) return;
+  changePollTimer = setInterval(() => {
+    if (document.hidden) return;
+    void checkChanged({ all: false });
+  }, CHANGE_POLL_MS);
+}
+
+function stopChangePoll() {
+  if (!changePollTimer) return;
+  clearInterval(changePollTimer);
+  changePollTimer = 0;
+}
+
+async function checkChanged({ all }) {
+  if (changeCheck) {
+    changeCheck.again = true;
+    changeCheck.all = changeCheck.all || all;
+    return changeCheck.promise;
   }
+  let resolveCheck;
+  const promise = new Promise((resolve) => {
+    resolveCheck = resolve;
+  });
+  changeCheck = { again: false, all: !!all, promise };
+  try {
+    do {
+      const checkAll = changeCheck.all;
+      changeCheck.all = false;
+      changeCheck.again = false;
+      const paths = [];
+      if (checkAll) {
+        for (const id of order) {
+          const path = tabs.get(id)?.path;
+          if (path) paths.push(path);
+        }
+      } else if (activeTab()?.path) {
+        paths.push(activeTab().path);
+      }
+      if (!paths.length) continue;
+      let changed;
+      try {
+        changed = await invoke("check_changed", { paths });
+      } catch (e) {
+        console.error(e);
+        continue;
+      }
+      if (!Array.isArray(changed)) continue;
+      for (const entry of changed) {
+        if (!entry || typeof entry.path !== "string") continue;
+        onPathChanged(entry.path, entry.missing === true);
+      }
+    } while (changeCheck.again);
+  } finally {
+    changeCheck = null;
+    resolveCheck();
+  }
+}
+
+function watchWindowForChanges() {
+  window.addEventListener("focus", () => {
+    void checkChanged({ all: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopChangePoll();
+      return;
+    }
+    void checkChanged({ all: true });
+    startChangePoll();
+  });
+  if (!document.hidden) startChangePoll();
 }
 
 /* —— Find (CSS Custom Highlight API) —— */
@@ -1768,7 +2125,10 @@ async function pickAndOpen() {
 
 $("btn-open").addEventListener("click", pickAndOpen);
 $("btn-open-empty").addEventListener("click", pickAndOpen);
-$("error-close").addEventListener("click", () => showError(null));
+$("error-close").addEventListener("click", () => {
+  if (errorBanner.classList.contains("warning")) deletedBannerMutedFor = activeId;
+  showError(null);
+});
 
 btnOutline.addEventListener("click", async () => {
   if (isNarrow() && prefs.outlineOpen) {
@@ -1821,6 +2181,11 @@ $("btn-zoom-out").addEventListener("click", () => setZoom((prefs.zoom || 1) - 0.
 window.addEventListener("keydown", (ev) => {
   if (dialog.open) return;
   const mod = ev.ctrlKey || ev.metaKey;
+  if (ev.key === "F5" || (mod && ev.key.toLowerCase() === "r")) {
+    ev.preventDefault();
+    if (!ev.repeat) void reloadKeepingScroll(undefined, { toast: true });
+    return;
+  }
   if (mod && ev.key.toLowerCase() === "o") {
     ev.preventDefault();
     pickAndOpen();
@@ -1924,13 +2289,16 @@ async function boot() {
   renderRecent();
 
   await listen("doc-changed", (ev) => {
-    const path = typeof ev.payload === "string" ? ev.payload : "";
-    void reloadKeepingScroll(path || undefined);
+    const change = parseDocChanged(ev.payload);
+    if (!change?.path) return;
+    onPathChanged(change.path, change.missing);
   });
 
   await listen("open-paths", () => {
     void consumePendingPaths();
   });
+
+  watchWindowForChanges();
 
   try {
     const pending = await invoke("take_pending_paths");
