@@ -152,6 +152,9 @@ impl AppState {
     pub(crate) fn touch_recent(&self, app: &AppHandle, path: &Path) {
         let path_str = path.to_string_lossy().into_owned();
         let mut prefs = self.prefs.lock().unwrap();
+        if prefs.recent.first() == Some(&path_str) {
+            return;
+        }
         prefs::push_recent(&mut prefs.recent, path_str);
         let snapshot = prefs.clone();
         drop(prefs);

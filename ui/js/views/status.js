@@ -1,4 +1,5 @@
 import {
+  encodingWarningEl,
   main,
   previewScroll,
   progressEl,
@@ -14,6 +15,7 @@ export function updateStatus() {
   const hasDoc = Boolean(state.currentPath);
   statusbar.classList.toggle("has-doc", hasDoc);
   main.classList.toggle("no-doc", !hasDoc);
+  encodingWarningEl.hidden = !(hasDoc && state.currentLossyDecode);
   if (hasDoc) {
     wordCountEl.textContent =
       state.currentWordCount === 1 ? "1 word" : `${state.currentWordCount.toLocaleString()} words`;

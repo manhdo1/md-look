@@ -14,6 +14,28 @@ function basenameCounts() {
   return counts;
 }
 
+/** Leading dot plus trailing screen-reader note, matching the order `renderTabbar` builds. */
+function setChangedMarkers(el, changed) {
+  el.querySelector(":scope > .tab-changed")?.remove();
+  el.querySelector(":scope > .visually-hidden")?.remove();
+  if (!changed) return;
+  const dot = document.createElement("span");
+  dot.className = "tab-changed";
+  dot.setAttribute("aria-hidden", "true");
+  const note = document.createElement("span");
+  note.className = "visually-hidden";
+  note.textContent = "Updated";
+  el.prepend(dot);
+  el.append(note);
+}
+
+function updateTabChanged(tab) {
+  if (tabbar.hidden) return;
+  const el = tabbar.querySelector(`.tab[data-tab-id="${tab.id}"]`);
+  if (el) setChangedMarkers(el, tab.changed);
+  else renderTabbar();
+}
+
 export function renderTabbar() {
   const { tabs, order, activeId } = state;
   const show = tabs.size >= 2;
@@ -41,13 +63,6 @@ export function renderTabbar() {
     el.tabIndex = id === activeId ? 0 : -1;
     el.title = tab.path;
 
-    if (tab.changed) {
-      const dot = document.createElement("span");
-      dot.className = "tab-changed";
-      dot.setAttribute("aria-hidden", "true");
-      el.appendChild(dot);
-    }
-
     const label = document.createElement("span");
     label.className = "tab-label";
     label.textContent = name || tab.title || "untitled";
@@ -68,13 +83,7 @@ export function renderTabbar() {
     close.innerHTML = icon("close");
     el.appendChild(close);
 
-    if (tab.changed) {
-      const note = document.createElement("span");
-      note.className = "visually-hidden";
-      note.textContent = "Updated";
-      el.appendChild(note);
-    }
-
+    setChangedMarkers(el, tab.changed);
     tabbar.appendChild(el);
   }
 
@@ -102,11 +111,11 @@ export function markBackgroundChanged(tab) {
   tab.stale = true;
   if (tab.changed) return;
   tab.changed = true;
-  renderTabbar();
+  updateTabChanged(tab);
 }
 
 export function clearTabChanged(tab) {
   if (!tab?.changed) return;
   tab.changed = false;
-  renderTabbar();
+  updateTabChanged(tab);
 }

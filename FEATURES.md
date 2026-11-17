@@ -16,13 +16,13 @@ Viewer Markdown **chỉ đọc** cho Windows (Tauri 2 + WebView2). File này li�
 - **Cú pháp hỗ trợ:** CommonMark + GFM gồm bảng (cuộn ngang khi rộng, có căn lề cột), task list, gạch ngang, footnote, và heading attribute.
 - **Front matter YAML** (khối `---` ở đầu file) hiện thành một code block YAML ở đầu bài.
 - **An toàn:** HTML được lọc (sanitize), không chạy script nhúng trong file Markdown.
-- **Mã hoá:** đọc UTF-8 và bỏ BOM. Byte không hợp lệ vẫn hiển thị được (thay bằng ký tự thế chỗ) thay vì báo lỗi.
+- **Mã hoá:** đọc UTF-8 và bỏ BOM. Byte không hợp lệ vẫn hiển thị được (thay bằng ký tự thế chỗ `�`) thay vì báo lỗi; khi đó status bar hiện cảnh báo **Lỗi mã hoá** cho tab đó.
 - **Ảnh tương đối:** ảnh nằm cạnh file hiển thị bình thường, kể cả khi chuyển qua lại giữa các tab ở những thư mục khác nhau.
 - **Font:** Be Vietnam Pro cho chữ đọc, JetBrains Mono cho code. Cả hai đi kèm app, không cần mạng.
 
 ## Code block
 
-- Tô màu cú pháp bằng highlight.js (chạy local), với nhãn ngôn ngữ ở góc.
+- Tô màu cú pháp bằng highlight.js (chạy local), với nhãn ngôn ngữ ở góc. Chỉ tô khi block sắp cuộn tới; block không ghi ngôn ngữ (```` ``` ```` trơn) hiện chữ thường, không tự đoán ngôn ngữ.
 - Nút **Copy** để chép code vào clipboard; nút báo "Copied" khi thành công.
 - Highlight được cache, nên khi file reload thì các block không đổi không bị tô màu lại.
 
@@ -40,6 +40,7 @@ Các khối ` ```mermaid ` được vẽ bằng `mermaid.min.js` local, theo pal
 - **Link trong sơ đồ** (`click` của Mermaid): mở được URL ngoài, file `.md` tương đối và anchor `#...`.
 - **Lỗi cú pháp:** hiện hộp báo lỗi (tối đa 6 dòng) và tự chuyển sang tab Source.
 - **Hiệu năng:**
+  - Thư viện Mermaid chỉ được nạp khi gặp sơ đồ đầu tiên, nên mở app và mở file không có sơ đồ đều nhanh hơn.
   - Chỉ vẽ sơ đồ khi nó sắp cuộn tới vùng đang đọc.
   - Sơ đồ đã vẽ không vẽ lại khi quay về tab.
   - SVG được cache theo theme, nên đổi theme hay reload file đều nhanh.
@@ -94,6 +95,7 @@ Các khối ` ```mermaid ` được vẽ bằng `mermaid.min.js` local, theo pal
   - Bỏ qua thanh công cụ của code block và sơ đồ đang ở chế độ Diagram; mã Mermaid chỉ được tìm khi sơ đồ ở tab Source.
 - **Status bar:**
   - Mục hiện tại ("3 / 22" + tên mục), số từ, và % đã đọc.
+  - Cảnh báo **Lỗi mã hoá** khi file không phải UTF-8 hợp lệ (rê chuột để xem giải thích).
   - Thanh tiến độ đọc chạy dọc mép trên của status bar.
 
 ## Giao diện và tuỳ chỉnh
@@ -127,4 +129,3 @@ Các khối ` ```mermaid ` được vẽ bằng `mermaid.min.js` local, theo pal
 - Không sửa file: app chỉ đọc, không có chế độ edit.
 - Không xuất PDF/HTML, không in.
 - Không khôi phục các tab của phiên trước khi mở lại app.
-- Không báo trên giao diện khi file bị đọc lỗi mã hoá: nội dung vẫn hiển thị với ký tự thế chỗ.

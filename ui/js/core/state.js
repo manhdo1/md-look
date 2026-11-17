@@ -16,6 +16,7 @@ export const state = {
   outline: [],
   currentPath: "",
   currentWordCount: 0,
+  currentLossyDecode: false,
   findMatches: [],
   findIndex: -1,
   /** @type {Map<string, {again: boolean, toast: boolean, done: Promise<void>}>} */

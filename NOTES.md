@@ -152,7 +152,7 @@ Tauri 2 · WebView2 · pulldown-cmark · ammonia · notify · tauri-plugin-singl
 
 ```
 tabs: Map<id, Tab>
-  Tab = { id, path, title, el, outline, wordCount, scrollTop, force, stale, changed, missing }
+  Tab = { id, path, title, el, outline, wordCount, lossyDecode, scrollTop, force, stale, changed, missing }
 order: string[]          # thứ tự tab
 activeId, lruOrder
 MAX_LIVE_TABS = 6        # DOM sống; tab ít dùng → evict el, đánh stale
@@ -191,8 +191,18 @@ Giải pháp (2026-11-16):
 3. **Cache SVG** — `Map` key = `theme + "\n" + source`, tối đa 80 mục LRU: reload file / evict tab / đổi theme / full window lấy lại SVG đã render.
 4. **Hàng đợi một worker** — `diagramQueue` + `drainDiagramQueue`; rời tab giữa chừng → bỏ qua fit; lần sau lấy từ cache.
 5. Đổi theme: chỉ `rescheduleVisibleDiagrams()` cho diagram đang gần viewport của tab active.
+6. **Nạp script lazy (2026-11-17)** — `mermaid.min.js` (2,6 MB, ~250 ms main thread) không còn là `<script>` trong `index.html`; `loadMermaid()` chèn script khi diagram đầu tiên cần vẽ. File không có diagram không trả chi phí này, và `boot()` không phải chờ nó.
 
 Giữ nguyên UX cũ: theme `base` khớp palette, `securityLevel: "antiscript"`, min scale 68%, full window, Diagram/Source.
+
+## Hiệu năng khác (2026-11-17)
+
+Số đo trong Chromium headless (cùng engine với WebView2):
+
+- **Highlight code lazy** — `enhanceCodeBlocks()` chỉ dựng khung; `hljs.highlightElement` chạy khi block vào vùng `IntersectionObserver` (`rootMargin: 100% 0px`). Block có trong cache (reload) được áp ngay. Block **không** ghi ngôn ngữ để chữ trơn: auto-detect chậm ~6× (20 block × 40 dòng: 187 ms có ngôn ngữ, 1122 ms auto). Find gọi `flushCodeHighlights()` trước khi quét, vì highlight muộn sẽ thay text node và làm hỏng các `Range` đã tìm. `releaseCodeBlocks()` đi cùng `releaseDiagrams()` khi evict / thay / đóng article.
+- **Scroll-spy cache** — vị trí heading đo một lần, lưu trong `headingTops`; `ResizeObserver` trên article xoá cache khi kích thước đổi (ảnh, diagram, zoom, bề rộng). Trước đây mỗi frame cuộn gọi 2× `getBoundingClientRect` cho mọi heading (~4 ms/frame ở 1000 heading). Handler `resize` của window gộp qua `requestAnimationFrame`.
+- **Thanh tab** — đổi chấm "có thay đổi" chỉ sửa phần tử tab đó (`updateTabChanged`), không dựng lại cả `#tabbar`.
+- **Recent** — UI tự cập nhật `state.prefs.recent` cho mọi lần mở (kể cả `openMany` nền) thay vì gọi lại `get_prefs`; tránh `set_prefs` sau đó ghi đè recent của Rust bằng bản cũ. Rust bỏ qua ghi `prefs.json` khi file đã đứng đầu recent.
 
 ---
 

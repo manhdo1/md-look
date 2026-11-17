@@ -1015,6 +1015,21 @@ html[data-theme="dark"] .primary-btn:hover {
   color: var(--ink);
 }
 
+#encoding-warning:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--line-ink);
+  cursor: help;
+}
+
+#encoding-warning .icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
 .status-count {
   margin-right: 10px;
   font-weight: 600;

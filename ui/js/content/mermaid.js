@@ -4,6 +4,28 @@ import { LruCache } from "../core/lru.js";
 const svgCache = new LruCache(SVG_CACHE_MAX);
 let mermaidSeq = 0;
 let mermaidTheme = null;
+/** @type {Promise<boolean> | null} */
+let mermaidLoad = null;
+
+/** The 2.6 MB bundle costs ~250 ms of main thread, so it loads with the first diagram, not at startup. */
+function loadMermaid() {
+  if (window.mermaid) return Promise.resolve(true);
+  if (!mermaidLoad) {
+    mermaidLoad = new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "vendor/mermaid.min.js";
+      script.onload = () => resolve(Boolean(window.mermaid));
+      script.onerror = () => {
+        console.error("mermaid failed to load");
+        script.remove();
+        mermaidLoad = null;
+        resolve(false);
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return mermaidLoad;
+}
 
 function mermaidConfig() {
   const dark = document.documentElement.dataset.theme === "dark";
@@ -167,7 +189,8 @@ export function currentTheme() {
 }
 
 /** Re-initialize Mermaid only when the theme it was configured for changes. */
-function ensureMermaid() {
+async function ensureMermaid() {
+  if (!(await loadMermaid())) return false;
   const theme = currentTheme();
   if (mermaidTheme === theme) return true;
   if (!initMermaid()) return false;
@@ -197,7 +220,7 @@ async function mermaidSvg(source) {
 }
 
 export async function renderMermaidInto(canvas, source) {
-  if (!ensureMermaid()) return null;
+  if (!(await ensureMermaid())) return null;
   const entry = await mermaidSvg(source);
   if (entry.error) throw entry.error;
   canvas.innerHTML = entry.svg;

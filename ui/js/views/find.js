@@ -1,6 +1,7 @@
 import { FIND_DEBOUNCE_MS } from "../core/constants.js";
 import { $, findBar, findCount, findInput, previewScroll } from "../core/dom.js";
 import { state } from "../core/state.js";
+import { flushCodeHighlights } from "../content/code-blocks.js";
 
 let findTimer = null;
 
@@ -41,6 +42,7 @@ export function runFind(query) {
     return;
   }
 
+  flushCodeHighlights(state.article);
   const lower = query.toLowerCase();
   const ranges = [];
   for (const node of collectTextNodes(state.article)) {

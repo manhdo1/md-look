@@ -5,10 +5,28 @@ import { updateProgress } from "./status.js";
 
 let activeHeadingId = null;
 let scrollRaf = 0;
+let resizeRaf = 0;
+/** Heading offsets inside the preview, in outline order; null until measured. */
+let headingTops = null;
+/** Images, diagrams, zoom, and width changes all resize the article and move headings. */
+const articleSizeObserver = new ResizeObserver(() => {
+  headingTops = null;
+});
+
+function measureHeadingTops() {
+  const rootTop = previewScroll.getBoundingClientRect().top - previewScroll.scrollTop;
+  return state.outline.map((item) => {
+    const el = document.getElementById(item.id);
+    return el ? el.getBoundingClientRect().top - rootTop : Infinity;
+  });
+}
 
 export function renderOutline(entries) {
   state.outline = entries || [];
   const { outline } = state;
+  headingTops = null;
+  articleSizeObserver.disconnect();
+  articleSizeObserver.observe(state.article);
   outlineList.innerHTML = "";
   outlineEmpty.hidden = outline.length > 0 || state.article.hidden;
   const minLevel = outline.reduce((m, e) => Math.min(m, e.level), 6);
@@ -35,11 +53,6 @@ export function renderOutline(entries) {
   updateActiveHeading();
 }
 
-function offsetInPreview(el) {
-  const rootTop = previewScroll.getBoundingClientRect().top;
-  return el.getBoundingClientRect().top - rootTop + previewScroll.scrollTop;
-}
-
 /**
  * Scroll-spy: last heading whose top has crossed a probe line near the top of
  * the viewport. At document end, force the last entry so short trailing
@@ -47,8 +60,7 @@ function offsetInPreview(el) {
  */
 export function updateActiveHeading() {
   const { outline } = state;
-  const items = [...outlineList.children];
-  if (!outline.length || !items.length || state.article.hidden) {
+  if (!outline.length || !outlineList.childElementCount || state.article.hidden) {
     activeHeadingId = null;
     sectionEl.textContent = "";
     return;
@@ -62,15 +74,16 @@ export function updateActiveHeading() {
     activeIdx = outline.length - 1;
   } else {
     const probe = scrollTop + Math.min(96, Math.max(32, clientHeight * 0.2));
-    outline.forEach((item, i) => {
-      const el = document.getElementById(item.id);
-      if (el && offsetInPreview(el) <= probe) activeIdx = i;
+    if (!headingTops || headingTops.length !== outline.length) headingTops = measureHeadingTops();
+    headingTops.forEach((top, i) => {
+      if (top <= probe) activeIdx = i;
     });
   }
 
   const activeId = outline[activeIdx].id;
   if (activeId === activeHeadingId) return;
   activeHeadingId = activeId;
+  const items = [...outlineList.children];
   const count = document.createElement("span");
   count.className = "status-count";
   count.textContent = `${activeIdx + 1} / ${outline.length}`;
@@ -108,8 +121,12 @@ export function initScrollSpy() {
 /** Re-apply the narrow-window outline layout and re-sync indicators on resize. */
 export function initWindowResize() {
   window.addEventListener("resize", () => {
-    applyPrefs();
-    updateActiveHeading();
-    updateProgress();
+    if (resizeRaf) return;
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      applyPrefs();
+      updateActiveHeading();
+      updateProgress();
+    });
   });
 }

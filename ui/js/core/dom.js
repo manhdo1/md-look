@@ -15,6 +15,7 @@ export const findInput = $("find-input");
 export const findCount = $("find-count");
 export const zoomLabel = $("zoom-label");
 export const wordCountEl = $("word-count");
+export const encodingWarningEl = $("encoding-warning");
 export const progressEl = $("read-progress");
 export const sectionEl = $("status-section");
 export const statusbar = $("statusbar");

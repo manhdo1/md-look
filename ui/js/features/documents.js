@@ -11,10 +11,10 @@ import {
   previewScroll,
   tabbar,
 } from "../core/dom.js";
-import { closeFile, getPrefs, openFile, pickFiles, reloadFile, setActive } from "../core/ipc.js";
+import { closeFile, openFile, pickFiles, reloadFile, setActive } from "../core/ipc.js";
 import { basename, dirname, samePath } from "../core/paths.js";
 import { activeTab, findTabByPath, state, touchLru } from "../core/state.js";
-import { enhanceCodeBlocks } from "../content/code-blocks.js";
+import { enhanceCodeBlocks, releaseCodeBlocks } from "../content/code-blocks.js";
 import { diagramsIdle, prepareDiagrams, releaseDiagrams } from "../content/diagrams.js";
 import { clearDeletedBanner, isMissingFileError, showDeletedBanner, showError } from "../widgets/banner.js";
 import { clearFind, refreshFind } from "../views/find.js";
@@ -54,6 +54,7 @@ function detachActiveArticle() {
 function updateChromeForTab(tab) {
   state.currentPath = tab?.path || "";
   state.currentWordCount = tab ? Number(tab.wordCount) || 0 : 0;
+  state.currentLossyDecode = Boolean(tab?.lossyDecode);
   state.outline = tab?.outline || [];
   pathLabel.textContent = tab ? basename(tab.path) || tab.title || "" : "";
   pathDir.textContent = tab ? dirname(tab.path) : "";
@@ -75,6 +76,7 @@ function evictLiveTabsIfNeeded() {
     const tab = tabs.get(id);
     if (!tab?.el) continue;
     releaseDiagrams(tab.el);
+    releaseCodeBlocks(tab.el);
     tab.el = null;
     tab.stale = true;
   }
@@ -83,6 +85,7 @@ function evictLiveTabsIfNeeded() {
 function fillArticleFromDoc(tab, doc) {
   if (!tab.el) tab.el = createArticleEl();
   releaseDiagrams(tab.el);
+  releaseCodeBlocks(tab.el);
   state.article = tab.el;
   state.article.hidden = false;
   state.article.innerHTML = doc.html || "";
@@ -90,6 +93,7 @@ function fillArticleFromDoc(tab, doc) {
   tab.title = doc.title || basename(tab.path);
   tab.outline = doc.outline || [];
   tab.wordCount = Number(doc.word_count) || 0;
+  tab.lossyDecode = Boolean(doc.lossy_decode);
   tab.stale = false;
   prepareDiagrams();
   enhanceCodeBlocks();
@@ -220,6 +224,7 @@ export async function closeTab(id) {
 
   if (tab.el?.isConnected) tab.el.remove();
   releaseDiagrams(tab.el);
+  releaseCodeBlocks(tab.el);
   tabs.delete(id);
   state.order = state.order.filter((x) => x !== id);
   state.lruOrder = state.lruOrder.filter((x) => x !== id);
@@ -274,10 +279,20 @@ export function showEmpty() {
   docTitle.title = "";
   state.currentPath = "";
   state.currentWordCount = 0;
+  state.currentLossyDecode = false;
   state.outline = [];
   updateStatus();
   void setActive(null).catch(() => {});
   renderRecent();
+}
+
+/** Mirror the backend's recent list so a later `set_prefs` does not overwrite it with a stale copy. */
+function rememberRecent(path) {
+  if (!path) return;
+  state.prefs.recent = [
+    path,
+    ...(state.prefs.recent || []).filter((p) => !samePath(p, path)),
+  ].slice(0, MAX_RECENT);
 }
 
 export function applyDocToActiveTab(doc) {
@@ -289,13 +304,7 @@ export function applyDocToActiveTab(doc) {
   updateChromeForTab(tab);
   renderOutline(tab.outline);
   clearFind();
-
-  if (tab.path) {
-    state.prefs.recent = [
-      tab.path,
-      ...(state.prefs.recent || []).filter((p) => !samePath(p, tab.path)),
-    ].slice(0, MAX_RECENT);
-  }
+  rememberRecent(tab.path);
 
   // Two frames: the observer reports new diagrams after the first layout.
   const nextFrame = () => new Promise(requestAnimationFrame);
@@ -324,6 +333,7 @@ export async function openPath(path, force = false, { activate = true } = {}) {
       el: createArticleEl(),
       outline: doc.outline || [],
       wordCount: Number(doc.word_count) || 0,
+      lossyDecode: Boolean(doc.lossy_decode),
       scrollTop: 0,
       force: !!force,
       stale: false,
@@ -338,6 +348,7 @@ export async function openPath(path, force = false, { activate = true } = {}) {
 
     const keepArticle = state.article;
     fillArticleFromDoc(tab, doc);
+    rememberRecent(tab.path);
 
     if (activate) {
       detachActiveArticle();
@@ -348,11 +359,6 @@ export async function openPath(path, force = false, { activate = true } = {}) {
       clearFind();
       previewScroll.scrollTop = 0;
       renderTabbar();
-      try {
-        state.prefs = (await getPrefs()) || state.prefs;
-      } catch (_) {
-        /* keep local */
-      }
       renderRecent();
       evictLiveTabsIfNeeded();
       refreshScrollIndicators();

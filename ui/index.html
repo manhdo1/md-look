@@ -202,6 +202,16 @@
           <span id="status-section" class="status-text"></span>
         </div>
         <div id="status-right">
+          <span
+            id="encoding-warning"
+            class="status-text"
+            lang="vi"
+            title="File không phải UTF-8 hợp lệ; các byte lỗi được thay bằng ký tự �."
+            hidden
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
+            Lỗi mã hoá
+          </span>
           <span id="word-count" class="status-text"></span>
           <span id="read-progress" class="status-text"></span>
           <div id="zoom-group" role="group" aria-label="Text size">
@@ -252,7 +262,6 @@
     </dialog>
 
     <script src="vendor/highlight.min.js"></script>
-    <script src="vendor/mermaid.min.js"></script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>
