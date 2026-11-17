@@ -18,6 +18,8 @@ cargo tauri dev
 cargo tauri dev -- -- tests/fixtures/huong-dan.md
 ```
 
+Double-clicking a Markdown file reuses the running window (Notepad-style) via single-instance. After `cargo tauri build` + install, file associations come from the installer. If Explorer’s “Open with” still points at an older exe, pick the new build once.
+
 ## Build
 
 ```bash
@@ -37,10 +39,11 @@ Architecture, decisions, and icon notes: see [NOTES.md](./NOTES.md).
 - Outline drawn as a line with stations, filled up to the section you are reading; stable heading ids
 - Reading progress line on the status bar with current section and position
 - Find with match count (CSS Custom Highlight API)
-- External links open in the system browser; relative `.md` links open in-app
+- Multiple files in one window (tabs appear when two or more are open); single-instance so Explorer opens reuse the window
+- External links open in the system browser; relative `.md` links open in a new tab
 - File watch reload (~150 ms debounce) with scroll-position restore
 - Light/dark theme and zoom, persisted in the app config dir
-- Images from the open file’s directory via Tauri asset protocol (scoped, not whole-disk)
+- Images from each open file’s directory via Tauri asset protocol (scoped per opened folder)
 
 ## Layout
 

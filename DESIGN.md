@@ -83,6 +83,7 @@ spacing:
   column-x: "56px"
   measure: "46rem"
   titlebar: "40px"
+  tabbar: "34px"
   statusbar: "30px"
   sidebar: "248px"
   rail-x: "22px"
@@ -220,7 +221,7 @@ Cool, low-chroma neutrals tinted toward blue (hue ~258) with a single warm vermi
 
 ## Layout
 
-A three-part window: a 40px title bar (three-column grid, file name centred, directory trailing in faint 12px with left-ellipsis), a main grid of outline sidebar (default 248px, user-resizable via a zero-width separator with an 8px hit area) plus reader, and a 30px status bar. The reading column is centred at `46rem × zoom + 112px` with 44px top, 56px side, and 96px bottom padding; prose blocks share a 1.1em bottom rhythm, h2 opens with 2.2em above and 0.9em of padding above its text.
+A three-part window: a 40px title bar (three-column grid, file name centred, directory trailing in faint 12px with left-ellipsis), an optional 34px tab strip (only when two or more files are open), a main grid of outline sidebar (default 248px, user-resizable via a zero-width separator with an 8px hit area) plus reader, and a 30px status bar. The reading column is centred at `46rem × zoom + 112px` with 44px top, 56px side, and 96px bottom padding; prose blocks share a 1.1em bottom rhythm, h2 opens with 2.2em above and 0.9em of padding above its text.
 
 Diagrams may break the measure: they size to `min(100cqw − 48px, max(100%, 1120px))` and centre on the column using a container query on the scroller. Find floats top-right of the reader (12px/20px inset, max 380px). Under 760px the outline hides unless the user opens it, in which case it overlays the reader at `min(300px, 85vw)` with the floating shadow; article padding drops to 28px/22px/72px and the word count is hidden. Chrome spacing steps are 2, 6, 8, 14, 18, 24px.
 
@@ -263,6 +264,7 @@ Small, consistent corner radii that grow with the size of the object: 5px for ke
 ### Navigation
 - **Outline line diagram:** see Signature Component.
 - **Title bar:** platform ground, file name 600 ink-strong centred with faint directory; toggle on the left, Open / Find / Theme on the right. No logo.
+- **Tab strip:** hidden with a single open file. With two or more, a 34px platform-ground row under the title bar lists open files. Each tab is `flex: 0 1 200px` (min 96px), 12.5px/500 muted label with ellipsis; the active tab uses surface fill, 600 ink-strong type, and a 2px vermilion bar on its top edge (The One Signal Rule), painting over the strip's inset hairline so it meets the reader. No shadow on tabs. Duplicate basenames show the parent folder in 11.5px faint. Close is a 20px icon button visible on the active tab or on hover/focus; middle-click also closes. Horizontal overflow scrolls; the strip has no "+" control (Open / Ctrl+O opens files).
 - **Status bar:** platform ground, 12px muted text; left shows the vermilion-ink station counter and current section; right shows word count, percent read, and the zoom group.
 
 ### Outline Line Diagram (Signature Component)

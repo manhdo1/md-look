@@ -6,7 +6,7 @@ const { openUrl } = window.__TAURI__.opener;
 
 const $ = (id) => document.getElementById(id);
 
-const article = $("article");
+let article = $("article");
 const empty = $("empty");
 const outlineList = $("outline-list");
 const outlineEmpty = $("outline-empty");
@@ -30,6 +30,7 @@ const recentList = $("recent-list");
 const resizer = $("resizer");
 const btnOutline = $("btn-outline");
 const dialog = $("diagram-dialog");
+const tabbar = $("tabbar");
 
 const NARROW_BREAKPOINT = 760;
 const SIDEBAR_MIN = 180;
@@ -38,6 +39,8 @@ const FIND_DEBOUNCE_MS = 120;
 const XLINK = "http://www.w3.org/1999/xlink";
 /** Below this, 15px diagram labels drop under ~10px and stop being readable. */
 const INLINE_MIN_SCALE = 0.68;
+const MAX_LIVE_TABS = 6;
+const MAX_CLOSED_STACK = 10;
 
 let prefs = {
   theme: "light",
@@ -57,6 +60,18 @@ let resizing = false;
 let activeHeadingId = null;
 let scrollRaf = 0;
 
+/** @type {Map<string, object>} */
+const tabs = new Map();
+/** @type {string[]} */
+let order = [];
+/** @type {string | null} */
+let activeId = null;
+let nextTabId = 1;
+/** @type {string[]} */
+const closedStack = [];
+/** @type {string[]} */
+let lruOrder = [];
+
 function basename(path) {
   const normalized = path.replace(/\\/g, "/");
   const i = normalized.lastIndexOf("/");
@@ -67,6 +82,43 @@ function dirname(path) {
   const normalized = path.replace(/\\/g, "/");
   const i = normalized.lastIndexOf("/");
   return i >= 0 ? normalized.slice(0, i) : "";
+}
+
+function parentBasename(path) {
+  const dir = dirname(path);
+  if (!dir) return "";
+  return basename(dir);
+}
+
+/** Case-insensitive path compare for Windows. */
+function samePath(a, b) {
+  if (!a || !b) return false;
+  const na = a.replace(/\\/g, "/");
+  const nb = b.replace(/\\/g, "/");
+  return na.toLowerCase() === nb.toLowerCase();
+}
+
+function findTabByPath(path) {
+  for (const tab of tabs.values()) {
+    if (samePath(tab.path, path)) return tab;
+  }
+  return null;
+}
+
+function activeTab() {
+  return activeId ? tabs.get(activeId) || null : null;
+}
+
+function touchLru(id) {
+  lruOrder = lruOrder.filter((x) => x !== id);
+  lruOrder.push(id);
+}
+
+function createArticleEl() {
+  const el = document.createElement("article");
+  el.id = "article";
+  el.hidden = true;
+  return el;
 }
 
 function icon(name) {
@@ -368,9 +420,24 @@ class PanZoom {
 /* —— Mermaid —— */
 
 const diagramHeights = new Map();
+const SVG_CACHE_MAX = 80;
+const svgCache = new Map();
+/** @type {Set<HTMLElement>} */
+const diagramQueue = new Set();
+let diagramWorker = null;
 let mermaidSeq = 0;
-let renderToken = 0;
-let mermaidQueue = Promise.resolve();
+let mermaidTheme = null;
+
+/** Draw diagrams only when they come within one screen of the reader's viewport. */
+const diagramObserver = new IntersectionObserver(
+  (entries) => {
+    for (const entry of entries) {
+      entry.target._near = entry.isIntersecting;
+      if (entry.isIntersecting) scheduleDiagram(entry.target);
+    }
+  },
+  { root: previewScroll, rootMargin: "100% 0px" }
+);
 
 function mermaidConfig() {
   const dark = document.documentElement.dataset.theme === "dark";
@@ -529,20 +596,63 @@ function normalizeSvg(svg) {
   return { w, h };
 }
 
-async function renderMermaidInto(canvas, source) {
+function currentTheme() {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+/** Re-initialize Mermaid only when the theme it was configured for changes. */
+function ensureMermaid() {
+  const theme = currentTheme();
+  if (mermaidTheme === theme) return true;
+  if (!initMermaid()) return false;
+  mermaidTheme = theme;
+  return true;
+}
+
+/** Rendered SVG (or parse error) per theme + source, most recently used last. */
+async function mermaidSvg(source) {
+  const key = `${mermaidTheme}\n${source}`;
+  const cached = svgCache.get(key);
+  if (cached) {
+    svgCache.delete(key);
+    svgCache.set(key, cached);
+    return cached;
+  }
   const id = `mmd-${++mermaidSeq}`;
+  let entry;
   try {
     const { svg, bindFunctions } = await window.mermaid.render(id, source);
-    canvas.innerHTML = svg;
-    bindFunctions?.(canvas);
-    const el = canvas.querySelector("svg");
-    return el ? normalizeSvg(el) : null;
+    entry = { svg, bindFunctions, w: 0, h: 0 };
+  } catch (error) {
+    entry = { error };
   } finally {
     for (const strayId of [`d${id}`, id]) {
-      const stray = document.getElementById(strayId);
-      if (stray && !canvas.contains(stray)) stray.remove();
+      document.getElementById(strayId)?.remove();
     }
   }
+  svgCache.set(key, entry);
+  if (svgCache.size > SVG_CACHE_MAX) svgCache.delete(svgCache.keys().next().value);
+  return entry;
+}
+
+async function renderMermaidInto(canvas, source) {
+  if (!ensureMermaid()) return null;
+  const entry = await mermaidSvg(source);
+  if (entry.error) throw entry.error;
+  canvas.innerHTML = entry.svg;
+  entry.bindFunctions?.(canvas);
+  const el = canvas.querySelector("svg");
+  if (!el) return null;
+  if (!entry.w || !entry.h) {
+    const size = normalizeSvg(el);
+    entry.w = size.w;
+    entry.h = size.h;
+    return size;
+  }
+  el.style.maxWidth = "none";
+  el.setAttribute("width", String(entry.w));
+  el.setAttribute("height", String(entry.h));
+  return { w: entry.w, h: entry.h };
 }
 
 function toolButton(act, iconName, title, extraClass = "") {
@@ -715,43 +825,79 @@ function prepareDiagrams() {
     const pre = code.parentElement;
     const dg = buildDiagram(code.textContent ?? "");
     pre.replaceWith(dg);
+    diagramObserver.observe(dg);
     out.push(dg);
   });
   return out;
 }
 
-async function renderDiagram(dg, token) {
-  if (token !== renderToken || !dg.isConnected) return;
+/** Stop observing diagrams of an article that is being replaced, evicted, or closed. */
+function releaseDiagrams(root) {
+  root?.querySelectorAll(".diagram").forEach((dg) => {
+    diagramObserver.unobserve(dg);
+    diagramQueue.delete(dg);
+  });
+}
+
+async function renderDiagram(dg) {
+  const theme = currentTheme();
   dg.classList.remove("failed");
   dg.querySelector(".dg-error")?.remove();
   try {
     const size = await renderMermaidInto(dg._canvas, dg.dataset.source);
-    if (token !== renderToken || !size) return;
+    // Detached mid-render: the viewport has no size to fit against. Redraw (from cache)
+    // when the tab is shown again.
+    if (!dg.isConnected) return;
+    dg.dataset.rendered = theme;
+    if (!size) return;
     dg._pz.setContent(size.w, size.h);
     sizeViewport(dg);
     dg._pz.fit();
   } catch (e) {
-    if (token !== renderToken) return;
+    dg.dataset.rendered = theme;
     dg._canvas.innerHTML = "";
     showDiagramError(dg, e);
   }
 }
 
-function renderAllDiagrams() {
-  const diagrams = [...article.querySelectorAll(".diagram")];
-  const token = ++renderToken;
-  if (!diagrams.length || !initMermaid()) return Promise.resolve();
-  mermaidQueue = mermaidQueue
-    .catch(() => {})
-    .then(async () => {
-      try {
-        await document.fonts.load('15px "Be Vietnam Pro"');
-      } catch (_) {
-        /* fall back to whatever is loaded */
-      }
-      for (const dg of diagrams) await renderDiagram(dg, token);
-    });
-  return mermaidQueue;
+async function drainDiagramQueue() {
+  try {
+    await document.fonts.load('15px "Be Vietnam Pro"');
+  } catch (_) {
+    /* fall back to whatever is loaded */
+  }
+  while (diagramQueue.size) {
+    const dg = diagramQueue.values().next().value;
+    diagramQueue.delete(dg);
+    if (!dg.isConnected || !dg._near || dg.dataset.rendered === currentTheme()) continue;
+    await renderDiagram(dg);
+  }
+}
+
+function kickDiagramQueue() {
+  if (diagramWorker) return;
+  diagramWorker = drainDiagramQueue().finally(() => {
+    diagramWorker = null;
+    if (diagramQueue.size) kickDiagramQueue();
+  });
+}
+
+function scheduleDiagram(dg) {
+  if (dg.dataset.rendered === currentTheme()) return;
+  diagramQueue.add(dg);
+  kickDiagramQueue();
+}
+
+/** Resolves once every queued diagram near the viewport has been drawn. */
+function diagramsIdle() {
+  return diagramWorker ? diagramWorker.then(diagramsIdle) : Promise.resolve();
+}
+
+/** Re-queue on-screen diagrams of the active article (theme change). */
+function rescheduleVisibleDiagrams() {
+  article.querySelectorAll(".diagram").forEach((dg) => {
+    if (dg._near) scheduleDiagram(dg);
+  });
 }
 
 /* —— Fullscreen diagram —— */
@@ -773,7 +919,6 @@ async function openDiagramDialog(dg) {
   dlgCanvas.innerHTML = "";
   dialog.showModal();
   try {
-    initMermaid();
     const size = await renderMermaidInto(dlgCanvas, source);
     if (!size) return;
     dialogPz.setContent(size.w, size.h);
@@ -930,44 +1075,269 @@ function renderRecent() {
   }
 }
 
-/* —— Documents —— */
+/* —— Tabs —— */
 
-function showDocument(doc) {
-  showError(null);
+function attachArticle(tab) {
   empty.classList.remove("visible");
-  article.hidden = false;
-  article.innerHTML = doc.html || "";
-  currentPath = doc.path || "";
-  currentWordCount = Number(doc.word_count) || 0;
-  pathLabel.textContent = basename(currentPath) || doc.title || "";
-  pathDir.textContent = dirname(currentPath);
-  docTitle.title = currentPath;
-  document.title = `${doc.title || "markdown-look"} — markdown-look`;
-  prepareDiagrams();
-  enhanceCodeBlocks();
-  renderOutline(doc.outline || []);
-  clearFind();
-  updateStatus();
-
-  if (currentPath) {
-    prefs.recent = [currentPath, ...(prefs.recent || []).filter((p) => p !== currentPath)].slice(
-      0,
-      8
-    );
+  empty.hidden = true;
+  if (article && article !== tab.el && article.parentNode === previewScroll) {
+    article.remove();
   }
-
-  return renderAllDiagrams().then(() => {
-    requestAnimationFrame(() => {
-      updateActiveHeading();
-      updateProgress();
-    });
-  });
+  article = tab.el;
+  article.hidden = false;
+  if (!article.isConnected) {
+    previewScroll.appendChild(article);
+  }
 }
 
+function updateChromeForTab(tab) {
+  currentPath = tab?.path || "";
+  currentWordCount = tab ? Number(tab.wordCount) || 0 : 0;
+  outline = tab?.outline || [];
+  pathLabel.textContent = tab ? basename(tab.path) || tab.title || "" : "";
+  pathDir.textContent = tab ? dirname(tab.path) : "";
+  docTitle.title = tab?.path || "";
+  document.title = tab
+    ? `${tab.title || basename(tab.path) || "markdown-look"} — markdown-look`
+    : "markdown-look";
+  updateStatus();
+  void invoke("set_active", { title: tab ? tab.title || basename(tab.path) : null }).catch(() => {});
+}
+
+function basenameCounts() {
+  const counts = new Map();
+  for (const id of order) {
+    const tab = tabs.get(id);
+    if (!tab) continue;
+    const name = basename(tab.path).toLowerCase();
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return counts;
+}
+
+function renderTabbar() {
+  const show = tabs.size >= 2;
+  tabbar.hidden = !show;
+  if (!show) {
+    tabbar.innerHTML = "";
+    return;
+  }
+
+  const counts = basenameCounts();
+  const prevFocus = document.activeElement?.closest?.(".tab")?.dataset?.tabId;
+  tabbar.innerHTML = "";
+
+  for (const id of order) {
+    const tab = tabs.get(id);
+    if (!tab) continue;
+    const name = basename(tab.path);
+    const dup = (counts.get(name.toLowerCase()) || 0) > 1;
+    const el = document.createElement("div");
+    el.className = "tab";
+    el.setAttribute("role", "tab");
+    el.dataset.tabId = id;
+    el.setAttribute("aria-selected", String(id === activeId));
+    el.setAttribute("aria-controls", "preview-scroll");
+    el.tabIndex = id === activeId ? 0 : -1;
+    el.title = tab.path;
+
+    const label = document.createElement("span");
+    label.className = "tab-label";
+    label.textContent = name || tab.title || "untitled";
+    el.appendChild(label);
+
+    if (dup) {
+      const dir = document.createElement("span");
+      dir.className = "tab-dir";
+      dir.textContent = parentBasename(tab.path);
+      el.appendChild(dir);
+    }
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "tab-close";
+    close.title = "Close tab";
+    close.setAttribute("aria-label", `Close ${name || "tab"}`);
+    close.innerHTML = icon("close");
+    el.appendChild(close);
+    tabbar.appendChild(el);
+  }
+
+  const activeEl = tabbar.querySelector(`.tab[data-tab-id="${activeId}"]`);
+  activeEl?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  if (prevFocus) {
+    tabbar.querySelector(`.tab[data-tab-id="${prevFocus}"]`)?.focus();
+  }
+}
+
+function refreshTabSelection() {
+  if (tabbar.hidden) return;
+  tabbar.querySelectorAll(".tab").forEach((el) => {
+    const selected = el.dataset.tabId === activeId;
+    el.setAttribute("aria-selected", String(selected));
+    el.tabIndex = selected ? 0 : -1;
+  });
+  tabbar
+    .querySelector(`.tab[data-tab-id="${activeId}"]`)
+    ?.scrollIntoView({ inline: "nearest", block: "nearest" });
+}
+
+function evictLiveTabsIfNeeded() {
+  const live = order.filter((id) => tabs.get(id)?.el);
+  if (live.length <= MAX_LIVE_TABS) return;
+  const victims = lruOrder.filter((id) => id !== activeId && tabs.get(id)?.el);
+  while (order.filter((id) => tabs.get(id)?.el).length > MAX_LIVE_TABS && victims.length) {
+    const id = victims.shift();
+    const tab = tabs.get(id);
+    if (!tab?.el) continue;
+    releaseDiagrams(tab.el);
+    tab.el = null;
+    tab.stale = true;
+  }
+}
+
+function fillArticleFromDoc(tab, doc) {
+  if (!tab.el) tab.el = createArticleEl();
+  releaseDiagrams(tab.el);
+  article = tab.el;
+  article.hidden = false;
+  article.innerHTML = doc.html || "";
+  tab.path = doc.path || tab.path;
+  tab.title = doc.title || basename(tab.path);
+  tab.outline = doc.outline || [];
+  tab.wordCount = Number(doc.word_count) || 0;
+  tab.stale = false;
+  prepareDiagrams();
+  enhanceCodeBlocks();
+}
+
+async function activateTab(id, { restoreScroll = true } = {}) {
+  if (!tabs.has(id)) return;
+  const next = tabs.get(id);
+  const prev = activeTab();
+  if (prev === next && next.el?.isConnected && !next.stale) return;
+
+  if (prev && prev.id !== id) {
+    clearFind();
+    if (prev.el?.isConnected) {
+      prev.scrollTop = previewScroll.scrollTop;
+      prev.el.remove();
+    }
+  }
+
+  activeId = id;
+  touchLru(id);
+
+  if (!next.el || next.stale) {
+    let doc;
+    try {
+      doc = await invoke("reload", { path: next.path });
+    } catch (e) {
+      showError(String(e));
+      if (activeId === id && prev && prev !== next && tabs.has(prev.id)) {
+        activeId = null;
+        await activateTab(prev.id);
+      }
+      return;
+    }
+    const shown = article;
+    fillArticleFromDoc(next, doc);
+    if (activeId !== id) {
+      article = shown;
+      return;
+    }
+  }
+
+  attachArticle(next);
+  updateChromeForTab(next);
+  renderOutline(next.outline || []);
+  refreshTabSelection();
+  if (tabs.size >= 2) {
+    if (tabbar.hidden || tabbar.childElementCount !== tabs.size) renderTabbar();
+    else refreshTabSelection();
+  } else {
+    renderTabbar();
+  }
+
+  if (restoreScroll) {
+    previewScroll.scrollTop = next.scrollTop || 0;
+  }
+
+  if (findBar.classList.contains("visible") && findInput.value) {
+    runFind(findInput.value);
+  }
+
+  requestAnimationFrame(() => {
+    updateActiveHeading();
+    updateProgress();
+  });
+
+  evictLiveTabsIfNeeded();
+}
+
+async function closeTab(id) {
+  const tab = tabs.get(id);
+  if (!tab) return;
+
+  const idx = order.indexOf(id);
+  closedStack.unshift(tab.path);
+  if (closedStack.length > MAX_CLOSED_STACK) closedStack.length = MAX_CLOSED_STACK;
+
+  try {
+    await invoke("close_file", { path: tab.path });
+  } catch (e) {
+    console.error(e);
+  }
+
+  if (tab.el?.isConnected) tab.el.remove();
+  releaseDiagrams(tab.el);
+  tabs.delete(id);
+  order = order.filter((x) => x !== id);
+  lruOrder = lruOrder.filter((x) => x !== id);
+
+  if (!tabs.size) {
+    activeId = null;
+    showEmpty();
+    renderTabbar();
+    return;
+  }
+
+  if (activeId === id) {
+    const nextId = order[idx] || order[idx - 1] || order[0];
+    activeId = null;
+    await activateTab(nextId);
+  } else {
+    renderTabbar();
+  }
+}
+
+function cycleTab(dir) {
+  if (order.length < 2 || !activeId) return;
+  const i = order.indexOf(activeId);
+  const next = order[(i + dir + order.length) % order.length];
+  void activateTab(next);
+}
+
+function goToTabIndex(n) {
+  if (!order.length) return;
+  const id = n >= order.length ? order[order.length - 1] : order[n];
+  if (id) void activateTab(id);
+}
+
+async function reopenClosedTab() {
+  const path = closedStack.shift();
+  if (path) await openPath(path);
+}
+
+/* —— Documents —— */
+
 function showEmpty() {
+  if (article?.isConnected) article.remove();
+  article = createArticleEl();
   article.hidden = true;
-  article.innerHTML = "";
+  empty.hidden = false;
   empty.classList.add("visible");
+  if (!empty.isConnected) previewScroll.appendChild(empty);
   outlineList.innerHTML = "";
   outlineEmpty.hidden = true;
   pathLabel.textContent = "";
@@ -975,31 +1345,127 @@ function showEmpty() {
   docTitle.title = "";
   currentPath = "";
   currentWordCount = 0;
+  outline = [];
   updateStatus();
+  void invoke("set_active", { title: null }).catch(() => {});
   renderRecent();
 }
 
-async function openPath(path, force = false) {
+function applyDocToActiveTab(doc) {
+  const tab = activeTab();
+  if (!tab) return Promise.resolve();
+  showError(null);
+  fillArticleFromDoc(tab, doc);
+  attachArticle(tab);
+  updateChromeForTab(tab);
+  renderOutline(tab.outline);
+  clearFind();
+
+  if (tab.path) {
+    prefs.recent = [
+      tab.path,
+      ...(prefs.recent || []).filter((p) => !samePath(p, tab.path)),
+    ].slice(0, 8);
+  }
+
+  // Two frames: the observer reports new diagrams after the first layout.
+  const nextFrame = () => new Promise(requestAnimationFrame);
+  return nextFrame()
+    .then(nextFrame)
+    .then(diagramsIdle)
+    .then(() => {
+      requestAnimationFrame(() => {
+        updateActiveHeading();
+        updateProgress();
+      });
+    });
+}
+
+async function openPath(path, force = false, { activate = true } = {}) {
+  const existing = findTabByPath(path);
+  if (existing) {
+    if (activate) await activateTab(existing.id);
+    return { path: existing.path, title: existing.title };
+  }
+
   try {
     const doc = await invoke("open_file", { path, force });
-    previewScroll.scrollTop = 0;
-    showDocument(doc);
-    try {
-      prefs = (await invoke("get_prefs")) || prefs;
-    } catch (_) {
-      /* keep local */
+    const id = `t${nextTabId++}`;
+    const tab = {
+      id,
+      path: doc.path || path,
+      title: doc.title || basename(doc.path || path),
+      el: createArticleEl(),
+      outline: doc.outline || [],
+      wordCount: Number(doc.word_count) || 0,
+      scrollTop: 0,
+      force: !!force,
+      stale: false,
+    };
+
+    const insertAt = activeId ? order.indexOf(activeId) + 1 : order.length;
+    order.splice(insertAt, 0, id);
+    tabs.set(id, tab);
+    touchLru(id);
+
+    const keepArticle = article;
+    fillArticleFromDoc(tab, doc);
+
+    if (activate) {
+      if (activeTab()?.el?.isConnected) {
+        activeTab().scrollTop = previewScroll.scrollTop;
+        activeTab().el.remove();
+      }
+      activeId = id;
+      attachArticle(tab);
+      updateChromeForTab(tab);
+      renderOutline(tab.outline);
+      clearFind();
+      previewScroll.scrollTop = 0;
+      renderTabbar();
+      try {
+        prefs = (await invoke("get_prefs")) || prefs;
+      } catch (_) {
+        /* keep local */
+      }
+      renderRecent();
+      evictLiveTabsIfNeeded();
+      requestAnimationFrame(() => {
+        updateActiveHeading();
+        updateProgress();
+      });
+    } else {
+      article = activeTab()?.el || keepArticle;
+      renderTabbar();
     }
-    renderRecent();
     return doc;
   } catch (e) {
     const msg = String(e);
     if (msg.includes("over 50 MB")) {
       if (confirm(`${msg}\n\nLoad anyway?`)) {
-        return openPath(path, true);
+        return openPath(path, true, { activate });
       }
     }
     showError(msg);
     throw e;
+  }
+}
+
+async function openMany(paths) {
+  const list = (paths || []).filter(Boolean);
+  if (!list.length) return;
+  let lastOk = null;
+  for (const path of list) {
+    try {
+      await openPath(path, false, { activate: false });
+      lastOk = path;
+    } catch (_) {
+      /* error already shown */
+    }
+  }
+  if (lastOk) {
+    const tab = findTabByPath(lastOk);
+    if (tab) await activateTab(tab.id);
   }
 }
 
@@ -1040,11 +1506,23 @@ function restoreScrollAnchor(anchor) {
   updateProgress();
 }
 
-async function reloadKeepingScroll() {
+async function reloadKeepingScroll(path) {
+  const tab = path ? findTabByPath(path) : activeTab();
+  if (!tab) return;
+
+  if (tab.id !== activeId) {
+    tab.stale = true;
+    return;
+  }
+
   const anchor = captureScrollAnchor();
   try {
-    const doc = await invoke("reload");
-    const rendered = showDocument(doc);
+    const doc = await invoke("reload", { path: tab.path });
+    if (tab.id !== activeId || !tabs.has(tab.id)) {
+      tab.stale = true;
+      return;
+    }
+    const rendered = applyDocToActiveTab(doc);
     requestAnimationFrame(() => restoreScrollAnchor(anchor));
     await rendered;
     requestAnimationFrame(() => restoreScrollAnchor(anchor));
@@ -1195,7 +1673,9 @@ async function followLink(href) {
   const pathPart = href.split("#")[0];
   if (/\.(md|markdown|mdx|txt)$/i.test(pathPart)) {
     try {
-      const abs = await invoke("resolve_relative", { rel: pathPart });
+      const base = activeTab()?.path;
+      if (!base) throw new Error("no file open");
+      const abs = await invoke("resolve_relative", { base, rel: pathPart });
       if (dialog.open) dialog.close();
       await openPath(abs);
       const hash = href.includes("#") ? href.split("#")[1] : null;
@@ -1222,24 +1702,65 @@ function onLinkClick(ev) {
   void followLink(href);
 }
 
-article.addEventListener("click", onLinkClick);
+previewScroll.addEventListener("click", onLinkClick);
 dlgViewport.addEventListener("click", onLinkClick);
+
+tabbar.addEventListener("click", (ev) => {
+  const closeBtn = ev.target.closest(".tab-close");
+  if (closeBtn) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const id = closeBtn.closest(".tab")?.dataset?.tabId;
+    if (id) void closeTab(id);
+    return;
+  }
+  const tabEl = ev.target.closest(".tab");
+  if (tabEl?.dataset?.tabId) void activateTab(tabEl.dataset.tabId);
+});
+
+tabbar.addEventListener("auxclick", (ev) => {
+  if (ev.button !== 1) return;
+  const tabEl = ev.target.closest(".tab");
+  if (!tabEl?.dataset?.tabId) return;
+  ev.preventDefault();
+  void closeTab(tabEl.dataset.tabId);
+});
+
+tabbar.addEventListener(
+  "wheel",
+  (ev) => {
+    if (Math.abs(ev.deltaY) > Math.abs(ev.deltaX)) {
+      tabbar.scrollLeft += ev.deltaY;
+      ev.preventDefault();
+    }
+  },
+  { passive: false }
+);
+
+tabbar.addEventListener("keydown", (ev) => {
+  if (!order.length) return;
+  const i = order.indexOf(activeId);
+  if (ev.key === "ArrowRight") {
+    ev.preventDefault();
+    goToTabIndex((i + 1) % order.length);
+    tabbar.querySelector(`.tab[data-tab-id="${order[(i + 1) % order.length]}"]`)?.focus();
+  } else if (ev.key === "ArrowLeft") {
+    ev.preventDefault();
+    const next = (i - 1 + order.length) % order.length;
+    goToTabIndex(next);
+    tabbar.querySelector(`.tab[data-tab-id="${order[next]}"]`)?.focus();
+  } else if (ev.key === "Delete" || ev.key === "Backspace") {
+    ev.preventDefault();
+    if (activeId) void closeTab(activeId);
+  }
+});
 
 /* —— Title bar / shortcuts —— */
 
 async function pickAndOpen() {
   try {
-    const doc = await invoke("pick_file");
-    if (doc) {
-      previewScroll.scrollTop = 0;
-      showDocument(doc);
-      try {
-        prefs = (await invoke("get_prefs")) || prefs;
-      } catch (_) {
-        /* keep */
-      }
-      renderRecent();
-    }
+    const paths = await invoke("pick_files");
+    if (paths?.length) await openMany(paths);
   } catch (e) {
     showError(String(e));
   }
@@ -1283,7 +1804,7 @@ $("btn-theme").addEventListener("click", async () => {
   prefs.theme = prefs.theme === "dark" ? "light" : "dark";
   applyPrefs();
   await savePrefs();
-  if (!article.hidden) void renderAllDiagrams();
+  if (activeTab()?.el && !article.hidden) rescheduleVisibleDiagrams();
 });
 
 async function setZoom(next) {
@@ -1306,6 +1827,19 @@ window.addEventListener("keydown", (ev) => {
   } else if (mod && ev.key.toLowerCase() === "f") {
     ev.preventDefault();
     openFind();
+  } else if (mod && ev.key.toLowerCase() === "w") {
+    ev.preventDefault();
+    if (activeId) void closeTab(activeId);
+  } else if (mod && ev.key.toLowerCase() === "t" && ev.shiftKey) {
+    ev.preventDefault();
+    void reopenClosedTab();
+  } else if (mod && (ev.key === "Tab" || ev.key === "PageDown" || ev.key === "PageUp")) {
+    ev.preventDefault();
+    cycleTab(ev.key === "PageUp" || (ev.key === "Tab" && ev.shiftKey) ? -1 : 1);
+  } else if (mod && ev.key >= "1" && ev.key <= "9") {
+    ev.preventDefault();
+    if (ev.key === "9") goToTabIndex(order.length - 1);
+    else goToTabIndex(Number(ev.key) - 1);
   } else if (ev.key === "Escape" && findBar.classList.contains("visible")) {
     closeFind();
   } else if (mod && (ev.key === "=" || ev.key === "+")) {
@@ -1368,6 +1902,15 @@ window.addEventListener("resize", () => {
 
 /* —— Boot —— */
 
+async function consumePendingPaths() {
+  try {
+    const pending = await invoke("take_pending_paths");
+    if (pending?.length) await openMany(pending);
+  } catch (e) {
+    showError(String(e));
+  }
+}
+
 async function boot() {
   try {
     prefs = (await invoke("get_prefs")) || prefs;
@@ -1380,23 +1923,19 @@ async function boot() {
   updateStatus();
   renderRecent();
 
-  await listen("doc-changed", () => {
-    reloadKeepingScroll();
+  await listen("doc-changed", (ev) => {
+    const path = typeof ev.payload === "string" ? ev.payload : "";
+    void reloadKeepingScroll(path || undefined);
   });
 
-  await listen("file-drop", async () => {
-    try {
-      const pending = await invoke("take_pending_path");
-      if (pending) await openPath(pending);
-    } catch (e) {
-      showError(String(e));
-    }
+  await listen("open-paths", () => {
+    void consumePendingPaths();
   });
 
   try {
-    const pending = await invoke("take_pending_path");
-    if (pending) {
-      await openPath(pending);
+    const pending = await invoke("take_pending_paths");
+    if (pending?.length) {
+      await openMany(pending);
       return;
     }
   } catch (e) {
