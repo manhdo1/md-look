@@ -21,6 +21,7 @@ markdown-look/                    # Cargo workspace
 ├── Cargo.toml                    # workspace + release profile (LTO, strip)
 ├── markdown-512px.png            # nguồn icon app (512×315)
 ├── NOTES.md                      # file này
+├── FEATURES.md                   # danh sách tính năng + phím tắt cho người dùng
 ├── README.md                     # hướng dẫn chạy nhanh
 ├── DESIGN.md                     # design system (Station Signage)
 ├── ui/                           # frontendDist — vanilla HTML/CSS/JS
@@ -262,7 +263,7 @@ cargo tauri build
 - [ ] File nhiều Mermaid: chuyển tab tức thì; cuộn mới vẽ dần; quay lại không vẽ lại
 - [ ] Đổi theme với nhiều tab; diagram lỗi cú pháp không làm chậm
 - [ ] Ctrl+W / Ctrl+Tab / Ctrl+Shift+T; đóng hết → empty state
-- [ ] Cửa sổ hẹp &lt; 760px với nhiều tab (cuộn ngang tabbar)
+- [ ] Cửa sổ hẹp < 760px với nhiều tab (cuộn ngang tabbar)
 
 ---
 

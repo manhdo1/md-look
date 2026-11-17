@@ -28,7 +28,7 @@ cargo tauri build
 
 The release installer/binary lands under `target/release/` (and `bundle/` when packaging).
 
-Architecture, decisions, and icon notes: see [NOTES.md](./NOTES.md).
+Architecture, decisions, and icon notes: see [NOTES.md](./NOTES.md). Full feature list and shortcuts (Vietnamese): see [FEATURES.md](./FEATURES.md).
 
 ## Features
 
