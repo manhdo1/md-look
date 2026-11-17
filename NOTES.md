@@ -67,30 +67,107 @@ markdown-look/                    # Cargo workspace
         └── prefs.rs              # prefs.json
 ```
 
-### Luồng dữ liệu
+Một process Tauri 2: Rust đọc và render Markdown một lần, WebView2 chỉ hiển thị HTML đã lọc. Frontend không có parser Markdown.
 
+```mermaid
+flowchart TB
+  subgraph sources ["Nguồn mở file"]
+    cli["CLI argv"]
+    explorer["Explorer double-click"]
+    drop["Kéo-thả vào cửa sổ"]
+    picker["Ctrl+O · pick_files"]
+  end
+
+  subgraph process ["Một process · src-tauri"]
+    si["tauri-plugin-single-instance<br/>đăng ký đầu tiên"]
+    pending["AppState.pending_paths"]
+    cmds["commands.rs"]
+    state["AppState<br/>docs · asset_dirs · prefs · watch"]
+    pipe["html::render_file"]
+    watch["WatchHub<br/>1 watcher · debounce 150 ms"]
+    prefs["prefs.json"]
+  end
+
+  subgraph pipebox ["Pipeline Markdown · chỉ đọc"]
+    doc["document::load<br/>UTF-8 · BOM · front matter"]
+    cmark["pulldown-cmark<br/>GFM"]
+    rewrite["html/events + links<br/>heading id · outline · asset URL"]
+    clean["ammonia sanitize<br/>+ wrap_tables"]
+  end
+
+  subgraph webview ["WebView2 · ui/js · không parse Markdown"]
+    ipc["core/ipc.js"]
+    feat["features<br/>documents · links · live-reload · shortcuts"]
+    views["views<br/>tabbar · outline · find · status · recent"]
+    content["content<br/>code-blocks · mermaid · panzoom"]
+    tabs["state.tabs<br/>article tách DOM · LRU tối đa 6"]
+  end
+
+  disk[(".md trên đĩa")]
+  assets["asset protocol<br/>ảnh theo thư mục file"]
+
+  cli --> si
+  explorer --> si
+  si --> pending
+  drop --> pending
+  picker --> cmds
+  pending -->|"event open-paths"| ipc
+  ipc -->|"take_pending_paths · open_file"| cmds
+  cmds --> state
+  cmds --> pipe
+  disk --> doc --> cmark --> rewrite --> clean --> pipe
+  pipe --> ipc
+  state --> prefs
+  state --> watch
+  state --> assets
+  watch -->|"event doc-changed"| ipc
+  ipc --> feat --> views
+  feat --> tabs
+  content --> tabs
+  assets --> tabs
 ```
-.md file(s)
-  → CLI / Explorer (single-instance) / drag-drop
-       → pending_paths → emit open-paths → UI take_pending_paths
-  → open_file / reload(path)
-       → document::load + html::render (pulldown-cmark → rewrite → ammonia)
-       → allow asset dir của file (không forbid — forbid thắng allow trong Tauri)
-       → ghi fingerprint (mtime, len) chỉ khi open_file / reload thành công
-       → WatchHub.add(path)   # path đã normalize (dunce, không prefix \\?\, backslash Windows)
-  → file đổi trên đĩa
-       · notify → WatchHub debounce 150ms → emit doc-changed { path, missing }
-       · poll 2s chỉ tab active khi cửa sổ đang hiện; focus / hiện lại thì check_changed mọi tab
-         (vẫn reload nếu notify không bắn). check_changed chỉ so fingerprint, không ghi
-       · reload thử đọc lại sau 100 / 250 / 500ms; file vẫn mất → lỗi chứa "not found"
-  → UI
-       · mỗi tab một <article>; chỉ tab active gắn vào #preview-scroll
-       · tab nền: giữ DOM tách (detached); LRU tối đa 6 DOM sống
-       · tab active đổi nội dung → reload, giữ scroll, toast "Đã cập nhật"
-       · tab nền → chấm trên tab + stale; reload khi mở lại
-       · file mất ("not found" / "missing") → giữ article cũ, banner cảnh báo
-       · Mermaid: IntersectionObserver (gần viewport) + cache SVG theo theme+source
+
+Import ở `ui/js` chỉ đi xuống: `core` → `widgets` → `content` → `views` → `features` → `main.js`. Tầng dưới không gọi ngược lên; `main.js` truyền callback khi cần (`initRecent({ open })`, `initDiagrams({ onViewChange })`). State dùng chung nằm trong `state` (`core/state.js`).
+
+### Luồng một file
+
+```mermaid
+sequenceDiagram
+  participant Src as CLI / Explorer / drop
+  participant Rust as AppState + commands
+  participant HTML as html::render_file
+  participant UI as documents.js
+  participant DOM as article trong tab
+
+  Src->>Rust: enqueue_paths
+  Rust-->>UI: event open-paths
+  UI->>Rust: take_pending_paths
+  UI->>Rust: open_file(path)
+  Rust->>HTML: load + parse + sanitize
+  HTML-->>Rust: HTML, outline, wordCount
+  Rust->>Rust: allow thư mục ảnh, ghi fingerprint, WatchHub.add
+  Rust-->>UI: RenderedDocument
+  UI->>DOM: gắn article vào #preview-scroll
+
+  Note over Rust,UI: File đổi trên đĩa
+  Rust-->>UI: doc-changed {path, missing}
+  alt Tab đang xem
+    UI->>Rust: reload
+    Rust-->>UI: HTML mới, giữ scroll theo heading
+  else Tab nền
+    UI->>UI: chấm changed, reload khi mở lại
+  end
 ```
+
+Ràng buộc không nằm hết trên sơ đồ:
+
+- Asset: chỉ `allow_directory`, không `forbid` (trong Tauri forbid thắng allow — đổi tab sang thư mục khác rồi quay lại sẽ mất ảnh nếu vẫn forbid).
+- Fingerprint `(mtime, len)` ghi khi `open_file` / `reload` thành công. `check_changed` chỉ so, không ghi.
+- `WatchHub.add` nhận path đã `normalize_path` (`dunce`, bỏ prefix `\\?\`, backslash Windows).
+- Notify debounce 150 ms. Ngoài ra poll 2 s chỉ tab đang xem khi cửa sổ hiện; focus hoặc hiện lại thì `check_changed` mọi tab.
+- `reload` thử đọc lại sau 100 / 250 / 500 ms. File vẫn mất thì lỗi chứa `"not found"`: giữ article cũ, hiện banner.
+- Mỗi tab một `<article>`. Chỉ tab active gắn vào `#preview-scroll`. Tab nền giữ DOM tách; LRU tối đa 6 DOM sống.
+- Mermaid: `IntersectionObserver` gần viewport, cache SVG theo theme + source.
 
 ### IPC
 
