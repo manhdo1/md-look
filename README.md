@@ -50,8 +50,12 @@ Architecture, decisions, and icon notes: see [NOTES.md](./NOTES.md).
 ```
 markdown-look/
   ui/                 # vanilla HTML/CSS/JS (no bundler, no markdown-it)
+    index.html        # chrome shell; loads vendor scripts then js/main.js as a module
+    js/               # ES modules: core / widgets / content / views / features
+    styles/ fonts/ vendor/
   src-tauri/          # Tauri 2 + Rust Markdown pipeline
-  tests/fixtures/     # sample.md, huong-dan.md
+    src/              # lib, cli, commands, html/, state, watch, prefs, …
+  tests/fixtures/     # sample.md, huong-dan.md, mermaid-sample.md
 ```
 
 The previous egui build is preserved at `../markdown-look-egui-final/`.

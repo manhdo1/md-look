@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager};
 
 pub const MAX_RECENT: usize = 8;
 pub const DEFAULT_SIDEBAR_WIDTH: f32 = 240.0;
+const PREFS_FILE_NAME: &str = "prefs.json";
 
 fn default_sidebar_width() -> f32 {
     DEFAULT_SIDEBAR_WIDTH
@@ -50,7 +51,7 @@ fn prefs_path(app: &AppHandle) -> Result<PathBuf, String> {
         .app_config_dir()
         .map_err(|e| format!("config dir: {e}"))?;
     fs::create_dir_all(&dir).map_err(|e| format!("create config dir: {e}"))?;
-    Ok(dir.join("prefs.json"))
+    Ok(dir.join(PREFS_FILE_NAME))
 }
 
 pub fn load(app: &AppHandle) -> Prefs {

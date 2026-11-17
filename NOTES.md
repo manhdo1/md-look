@@ -25,7 +25,13 @@ markdown-look/                    # Cargo workspace
 ├── DESIGN.md                     # design system (Station Signage)
 ├── ui/                           # frontendDist — vanilla HTML/CSS/JS
 │   ├── index.html                # titlebar, tabbar, outline, reader, statusbar
-│   ├── main.js                   # tabs, IPC, TOC, find, zoom, Mermaid, prefs
+│   ├── js/                       # ES modules (entry: type="module" src="js/main.js")
+│   │   ├── main.js               # init*() theo thứ tự cũ + boot()
+│   │   ├── core/                 # constants, dom, state, ipc (commands + events), paths, lru, icons
+│   │   ├── widgets/              # banner, toast, clipboard (chỉ phụ thuộc core)
+│   │   ├── content/              # panzoom, mermaid, diagrams, diagram-dialog, code-blocks
+│   │   ├── views/                # status, layout, outline, find, recent, tabbar
+│   │   └── features/             # documents, reload-queue, live-reload, links, shortcuts, tabbar-input
 │   ├── styles/
 │   │   ├── fonts.css
 │   │   ├── chrome.css            # tokens, titlebar, tabbar, outline, find, status
@@ -43,11 +49,21 @@ markdown-look/                    # Cargo workspace
     └── src/
         ├── main.rs
         ├── lib.rs                # single-instance (đầu tiên), drop, commands
+        ├── cli.rs                # resolve_argv_paths (CLI / second-instance)
         ├── document.rs
-        ├── html.rs
-        ├── commands.rs           # open / reload / check_changed / close / prefs / pick / asset
+        ├── html/                 # pulldown-cmark → rewrite → ammonia
+        │   ├── mod.rs            # render_markdown, render_file
+        │   ├── links.rs
+        │   ├── events.rs
+        │   └── sanitize.rs
+        ├── commands.rs           # thin wrappers: open / reload / check_changed / close / prefs / pick / asset
+        ├── events.rs             # EVENT_DOC_CHANGED, EVENT_OPEN_PATHS, MAIN_WINDOW, APP_NAME
+        ├── fingerprint.rs
+        ├── paths.rs              # normalize / lexical / parent_dir
+        ├── reload.rs
+        ├── state.rs              # AppState + DocEntry
         ├── watch.rs              # WatchHub: 1 watcher, nhiều path, debounce 150ms, doc-changed {path, missing}
-        └── prefs.rs
+        └── prefs.rs              # prefs.json
 ```
 
 ### Luồng dữ liệu
@@ -143,6 +159,7 @@ MAX_LIVE_TABS = 6        # DOM sống; tab ít dùng → evict el, đánh stale
 
 - Chuyển tab: detach article cũ (giữ scrollTop) → attach article mới (hoặc `reload` nếu stale/evicted/missing).
 - `changed` → chấm `.tab-changed` trên tab nền; `missing` → banner, article cũ giữ nguyên.
+- Module layers (`ui/js`): `core` → `widgets` → `content` → `views` → `features` → `main.js`. Import chỉ đi xuống, không có vòng; khi tầng dưới cần gọi lên thì `main.js` truyền callback (`initRecent({ open })`, `initDiagrams({ onViewChange })`). State dùng chung nằm trong object `state` (`core/state.js`).
 - Dedupe path: `samePath()` không phân biệt hoa thường và đổi `\` thành `/`. Không canonicalize lại trong JS.
 - Link `.md` nội bộ: `resolve_relative(base=active.path)` → `openPath` (tab mới / focus).
 

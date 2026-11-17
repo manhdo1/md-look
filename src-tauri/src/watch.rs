@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 
-use crate::document::lexical_normalize;
+use crate::paths::{lexical_normalize, parent_dir};
 
 const DEBOUNCE: Duration = Duration::from_millis(150);
 const IDLE_WAIT: Duration = Duration::from_secs(3600);
@@ -103,7 +103,7 @@ impl WatchHub {
 
     pub fn add(&self, path: &Path) -> anyhow::Result<()> {
         self.ensure_started()?;
-        let dir = watch_dir(path);
+        let dir = parent_dir(path);
 
         let mut dirs = self.dirs.lock().unwrap();
         if !dirs.contains_key(&dir) {
@@ -119,7 +119,7 @@ impl WatchHub {
     }
 
     pub fn remove(&self, path: &Path) {
-        let dir = watch_dir(path);
+        let dir = parent_dir(path);
         if let Some(key) = match_key(path) {
             self.targets.lock().unwrap().remove(&key);
         }
@@ -182,13 +182,6 @@ fn debounce_loop<F>(
     }
 }
 
-fn watch_dir(path: &Path) -> PathBuf {
-    path.parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(path)
-        .to_path_buf()
-}
-
 #[cfg(test)]
 fn same_file(event: &Path, target: &Path) -> bool {
     event == target || matches!((match_key(event), match_key(target)), (Some(a), Some(b)) if a == b)
@@ -216,33 +209,9 @@ fn parent_key(parent: &Path) -> String {
     }
 }
 
-/// Resolve CLI / second-instance argv entries relative to a working directory.
-pub fn resolve_argv_paths(argv: &[String], cwd: &Path) -> Vec<PathBuf> {
-    argv.iter()
-        .skip(1)
-        .filter(|arg| !arg.is_empty())
-        .map(|arg| {
-            let p = PathBuf::from(arg);
-            if p.is_absolute() {
-                p
-            } else {
-                cwd.join(p)
-            }
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn resolve_argv_skips_exe_and_empty() {
-        let cwd = PathBuf::from("/docs");
-        let args = vec!["markdown-look".into(), "a.md".into(), "".into()];
-        let paths = resolve_argv_paths(&args, &cwd);
-        assert_eq!(paths, vec![cwd.join("a.md")]);
-    }
 
     #[test]
     fn same_file_distinguishes_directories() {
@@ -447,25 +416,18 @@ mod tests {
     }
 
     fn expect_target(rx: &mpsc::Receiver<PathBuf>, target: &Path, timeout: Duration) {
-        let start = Instant::now();
-        loop {
-            let remain = timeout.saturating_sub(start.elapsed());
-            if remain.is_zero() {
-                panic!("timed out waiting for {}", target.display());
+        match rx.recv_timeout(timeout) {
+            Ok(path) if path == target => {}
+            Ok(path) => panic!(
+                "callback fired for {}, expected {}",
+                path.display(),
+                target.display()
+            ),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                panic!("timed out waiting for {}", target.display())
             }
-            match rx.recv_timeout(remain) {
-                Ok(path) if path == target => return,
-                Ok(path) => panic!(
-                    "callback fired for {}, expected {}",
-                    path.display(),
-                    target.display()
-                ),
-                Err(mpsc::RecvTimeoutError::Timeout) => {
-                    panic!("timed out waiting for {}", target.display())
-                }
-                Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    panic!("watch callback disconnected")
-                }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("watch callback disconnected")
             }
         }
     }

@@ -1,20 +1,27 @@
 //! markdown-look Tauri library entry.
 
+mod cli;
 mod commands;
 pub mod document;
+mod events;
+mod fingerprint;
 pub mod html;
+mod paths;
 mod prefs;
+mod reload;
+mod state;
 mod watch;
 
 use std::path::PathBuf;
 
 use tauri::{Emitter, Manager};
 
-use commands::AppState;
-use watch::resolve_argv_paths;
+use cli::resolve_argv_paths;
+use events::{EVENT_OPEN_PATHS, MAIN_WINDOW};
+use state::AppState;
 
 fn focus_main(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -27,7 +34,7 @@ fn enqueue_paths(app: &tauri::AppHandle, paths: Vec<PathBuf>) {
         return;
     }
     app.state::<AppState>().push_pending(paths);
-    let _ = app.emit("open-paths", ());
+    let _ = app.emit(EVENT_OPEN_PATHS, ());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -54,7 +61,7 @@ pub fn run() {
             app.manage(state);
 
             let handle = app.handle().clone();
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) =
                         event
