@@ -21,7 +21,20 @@ pub fn absolute_path(path: impl AsRef<Path>) -> PathBuf {
 pub fn normalize_path(path: impl AsRef<Path>) -> PathBuf {
     let absolute = absolute_path(path);
     match dunce::canonicalize(&absolute) {
-        Ok(canon) => canon,
+        // dunce usually strips `\\?\`, but WSL/UNC can still come back as `\\?\UNC\...`.
+        // Always run through strip_verbatim so argv `\\host\x` matches stored keys.
+        Ok(canon) => {
+            #[cfg(windows)]
+            {
+                PathBuf::from(strip_verbatim_prefix(
+                    &canon.to_string_lossy().replace('/', "\\"),
+                ))
+            }
+            #[cfg(not(windows))]
+            {
+                canon
+            }
+        }
         Err(_) => lexical_normalize(&absolute),
     }
 }
@@ -173,5 +186,22 @@ mod tests {
         assert_eq!(unc, PathBuf::from(r"\\server\share\b.md"));
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn strip_verbatim_unc_matches_unc_form() {
+        assert_eq!(
+            strip_verbatim_prefix(r"\\?\UNC\wsl.localhost\Ubuntu\home\doc.md"),
+            r"\\wsl.localhost\Ubuntu\home\doc.md"
+        );
+        let lexical = lexical_normalize(Path::new(
+            r"\\?\UNC\wsl.localhost\Ubuntu\home\manhdo\file.md",
+        ));
+        assert_eq!(
+            lexical,
+            PathBuf::from(r"\\wsl.localhost\Ubuntu\home\manhdo\file.md")
+        );
+        assert!(!lexical.to_string_lossy().contains(r"\\?\"));
     }
 }

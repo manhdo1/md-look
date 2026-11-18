@@ -16,10 +16,22 @@ export function parentBasename(path) {
   return basename(dir);
 }
 
-/** Case-insensitive path compare for Windows. */
+/** Strip Windows verbatim prefixes so `\\?\UNC\host\x` matches `\\host\x`. */
+function stripVerbatimForCompare(path) {
+  let n = path.replace(/\\/g, "/");
+  const lower = n.toLowerCase();
+  if (lower.startsWith("//?/unc/")) {
+    n = `//${n.slice("//?/unc/".length)}`;
+  } else if (n.startsWith("//?/")) {
+    n = n.slice("//?/".length);
+  }
+  return n;
+}
+
+/** Case-insensitive path compare for Windows (incl. `\\?\` / `\\?\UNC\` forms). */
 export function samePath(a, b) {
   if (!a || !b) return false;
-  const na = a.replace(/\\/g, "/");
-  const nb = b.replace(/\\/g, "/");
+  const na = stripVerbatimForCompare(a);
+  const nb = stripVerbatimForCompare(b);
   return na.toLowerCase() === nb.toLowerCase();
 }

@@ -382,17 +382,18 @@ export async function openPath(path, force = false, { activate = true } = {}) {
 export async function openMany(paths) {
   const list = (paths || []).filter(Boolean);
   if (!list.length) return;
-  let lastOk = null;
+  let lastPath = null;
   for (const path of list) {
     try {
-      await openPath(path, false, { activate: false });
-      lastOk = path;
+      const doc = await openPath(path, false, { activate: false });
+      // Prefer normalized doc.path — argv/UNC forms can differ (\\server vs \\?\UNC\server).
+      lastPath = doc?.path || path;
     } catch (_) {
       /* error already shown */
     }
   }
-  if (lastOk) {
-    const tab = findTabByPath(lastOk);
+  if (lastPath) {
+    const tab = findTabByPath(lastPath);
     if (tab) await activateTab(tab.id);
   }
 }
