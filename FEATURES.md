@@ -77,7 +77,7 @@ Các khối ` ```mermaid ` được vẽ bằng `mermaid.min.js` local, theo pal
   - App giữ nguyên nội dung cũ và hiện banner cảnh báo.
   - Bấm × trên banner thì banner không tự hiện lại cho tab đó.
   - Khi file xuất hiện trở lại, tab tự reload.
-- **Reload thủ công:** `F5` hoặc `Ctrl+R`, có giữ vị trí cuộn.
+- **Reload thủ công:** nút Refresh trên titlebar, hoặc `F5` / `Ctrl+R`, có giữ vị trí cuộn.
 
 ## Đọc và điều hướng
 
@@ -104,7 +104,7 @@ Các khối ` ```mermaid ` được vẽ bằng `mermaid.min.js` local, theo pal
 - **Cỡ chữ:**
   - `Ctrl+=` / `Ctrl+-` / `Ctrl+0`, hoặc các nút − / % / + ở status bar.
   - Phạm vi 70%–250%, bước 10%.
-- **Titlebar:** tên file và thư mục (rê chuột để xem đường dẫn đầy đủ). Tiêu đề cửa sổ là `<tên file> — markdown-look`.
+- **Titlebar frameless (một thanh):** outline · tên file/thư mục (1 file) hoặc tab strip (≥2 file) · Refresh / Open / Find / Theme · Minimize / Maximize / Close. Kéo vùng trống để di chuyển cửa sổ. Rê chuột tên file để xem đường dẫn đầy đủ. Tiêu đề cửa sổ là `<tên file> — markdown-look`. Chuột phải dùng menu gọn (Copy, Open/Copy link, Close tab), không dùng menu WebView2 mặc định.
 - **Lưu tuỳ chỉnh:** theme, cỡ chữ, trạng thái outline, bề rộng sidebar và danh sách Recent được lưu trong `prefs.json` ở thư mục config của app. App **không** mở lại các tab của phiên trước.
 
 ## Phím tắt

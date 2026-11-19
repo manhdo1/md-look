@@ -22,7 +22,9 @@ import { initOpenButtons, openMany, openPath, showEmpty } from "./features/docum
 import { initLinks } from "./features/links.js";
 import { onPathChanged, parseDocChanged, watchWindowForChanges } from "./features/live-reload.js";
 import { initShortcuts } from "./features/shortcuts.js";
+import { initContextMenu } from "./features/context-menu.js";
 import { initTabbarInput } from "./features/tabbar-input.js";
+import { initWindowControls } from "./features/window-controls.js";
 
 async function consumePendingPaths() {
   try {
@@ -74,6 +76,8 @@ initRecent({ open: (path) => openPath(path) });
 initDiagrams({ onViewChange: refreshFind });
 initDiagramDialog();
 initLinks();
+initContextMenu();
+initWindowControls();
 initTabbarInput();
 initOpenButtons();
 initBanner();

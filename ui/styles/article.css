@@ -1,4 +1,4 @@
-/* Reading column: calm, ~72ch measure; tables set like timetables. */
+/* Reading column: calm, ~100ch measure; tables set like timetables. */
 
 html[data-theme="light"] {
   --code-bg: oklch(97.2% 0.004 258);
@@ -25,7 +25,7 @@ html[data-theme="dark"] {
 }
 
 #article {
-  max-width: calc(46rem * var(--zoom) + 112px);
+  max-width: calc(64rem * var(--zoom) + 112px);
   margin: 0 auto;
   padding: 44px 56px 96px;
   font-family: var(--font-ui);

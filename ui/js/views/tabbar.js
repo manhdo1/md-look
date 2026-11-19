@@ -1,7 +1,13 @@
-import { tabbar } from "../core/dom.js";
+import { docTitle, tabbar } from "../core/dom.js";
 import { icon } from "../core/icons.js";
 import { basename, parentBasename } from "../core/paths.js";
 import { state } from "../core/state.js";
+
+function syncMiddleChrome(showTabs) {
+  tabbar.hidden = !showTabs;
+  if (docTitle) docTitle.hidden = showTabs;
+  document.getElementById("titlebar")?.classList.toggle("tabs-open", showTabs);
+}
 
 function basenameCounts() {
   const counts = new Map();
@@ -39,7 +45,7 @@ function updateTabChanged(tab) {
 export function renderTabbar() {
   const { tabs, order, activeId } = state;
   const show = tabs.size >= 2;
-  tabbar.hidden = !show;
+  syncMiddleChrome(show);
   if (!show) {
     tabbar.innerHTML = "";
     return;

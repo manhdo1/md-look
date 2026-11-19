@@ -22,13 +22,23 @@
         <symbol id="i-open" viewBox="0 0 16 16">
           <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M1.75 4.25c0-.83.67-1.5 1.5-1.5h3l1.5 1.75h5c.83 0 1.5.67 1.5 1.5v6.25c0 .83-.67 1.5-1.5 1.5h-9.5c-.83 0-1.5-.67-1.5-1.5v-8z" />
         </symbol>
+        <symbol id="i-refresh" viewBox="0 0 16 16">
+          <path
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M13.25 8A5.25 5.25 0 1 1 11.4 3.7M13.25 2.5v3.25H10"
+          />
+        </symbol>
         <symbol id="i-search" viewBox="0 0 16 16">
           <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5" />
           <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M10.5 10.5l3.5 3.5" />
         </symbol>
         <symbol id="i-sun" viewBox="0 0 16 16">
-          <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5" />
-          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9" />
+          <circle cx="8" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 1.25v1.5M8 13.25v1.5M1.25 8h1.5M13.25 8h1.5M3.15 3.15l1.05 1.05M11.8 11.8l1.05 1.05M3.15 12.85l1.05-1.05M11.8 4.2l1.05-1.05" />
         </symbol>
         <symbol id="i-moon" viewBox="0 0 16 16">
           <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z" />
@@ -40,6 +50,45 @@
           <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M4 6l4 4 4-4" />
         </symbol>
         <symbol id="i-close" viewBox="0 0 16 16">
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8" />
+        </symbol>
+        <!-- Window controls: same stroke language as app icons (1.5, round caps, ~3–4 inset). -->
+        <symbol id="i-win-min" viewBox="0 0 16 16">
+          <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M3.5 8h9" />
+        </symbol>
+        <symbol id="i-win-max" viewBox="0 0 16 16">
+          <rect
+            x="3.25"
+            y="3.25"
+            width="9.5"
+            height="9.5"
+            rx="1.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          />
+        </symbol>
+        <symbol id="i-win-restore" viewBox="0 0 16 16">
+          <rect
+            x="5.25"
+            y="5.25"
+            width="7.5"
+            height="7.5"
+            rx="1.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          />
+          <path
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10.75 5.1V3.75c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1H5.1"
+          />
+        </symbol>
+        <symbol id="i-win-close" viewBox="0 0 16 16">
           <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8" />
         </symbol>
         <symbol id="i-plus" viewBox="0 0 16 16">
@@ -70,8 +119,8 @@
     </svg>
 
     <div id="app">
-      <header id="titlebar">
-        <div class="titlebar-group">
+      <header id="titlebar" data-tauri-drag-region>
+        <div class="titlebar-group titlebar-start">
           <button
             type="button"
             id="btn-outline"
@@ -83,11 +132,24 @@
             <svg class="icon" aria-hidden="true"><use href="#i-outline" /></svg>
           </button>
         </div>
-        <div id="doc-title" title="">
-          <span id="path-label"></span>
-          <span id="path-dir"></span>
+        <div id="titlebar-middle" data-tauri-drag-region>
+          <div id="doc-title" title="" data-tauri-drag-region>
+            <span id="path-label" data-tauri-drag-region></span>
+            <span id="path-dir" data-tauri-drag-region></span>
+          </div>
+          <nav id="tabbar" role="tablist" aria-label="Open files" hidden></nav>
         </div>
-        <div class="titlebar-group">
+        <div class="titlebar-group titlebar-end">
+          <button
+            type="button"
+            id="btn-refresh"
+            class="icon-btn"
+            title="Refresh (Ctrl+R)"
+            aria-label="Refresh document"
+            disabled
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-refresh" /></svg>
+          </button>
           <button type="button" id="btn-open" class="icon-btn" title="Open (Ctrl+O)" aria-label="Open file">
             <svg class="icon" aria-hidden="true"><use href="#i-open" /></svg>
           </button>
@@ -110,10 +172,20 @@
             <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun" /></svg>
             <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon" /></svg>
           </button>
+          <div class="window-controls" role="group" aria-label="Window">
+            <button type="button" id="btn-win-min" class="win-btn" title="Minimize" aria-label="Minimize">
+              <svg class="icon" aria-hidden="true"><use href="#i-win-min" /></svg>
+            </button>
+            <button type="button" id="btn-win-max" class="win-btn" title="Maximize" aria-label="Maximize">
+              <svg class="icon icon-win-max" aria-hidden="true"><use href="#i-win-max" /></svg>
+              <svg class="icon icon-win-restore" aria-hidden="true"><use href="#i-win-restore" /></svg>
+            </button>
+            <button type="button" id="btn-win-close" class="win-btn win-close" title="Close" aria-label="Close">
+              <svg class="icon" aria-hidden="true"><use href="#i-win-close" /></svg>
+            </button>
+          </div>
         </div>
       </header>
-
-      <nav id="tabbar" role="tablist" aria-label="Open files" hidden></nav>
 
       <div id="error-banner" role="alert">
         <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>

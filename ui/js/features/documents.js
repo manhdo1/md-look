@@ -51,6 +51,11 @@ function detachActiveArticle() {
   }
 }
 
+function setRefreshEnabled(enabled) {
+  const btn = $("btn-refresh");
+  if (btn) btn.disabled = !enabled;
+}
+
 function updateChromeForTab(tab) {
   state.currentPath = tab?.path || "";
   state.currentWordCount = tab ? Number(tab.wordCount) || 0 : 0;
@@ -62,6 +67,7 @@ function updateChromeForTab(tab) {
   document.title = tab
     ? `${tab.title || basename(tab.path) || "markdown-look"} — markdown-look`
     : "markdown-look";
+  setRefreshEnabled(Boolean(tab));
   updateStatus();
   void setActive(tab ? tab.title || basename(tab.path) : null).catch(() => {});
 }
@@ -281,6 +287,7 @@ export function showEmpty() {
   state.currentWordCount = 0;
   state.currentLossyDecode = false;
   state.outline = [];
+  setRefreshEnabled(false);
   updateStatus();
   void setActive(null).catch(() => {});
   renderRecent();

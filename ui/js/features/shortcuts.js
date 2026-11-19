@@ -1,18 +1,25 @@
 import { ZOOM_STEP } from "../core/constants.js";
-import { dialog, findBar } from "../core/dom.js";
+import { $, dialog, findBar } from "../core/dom.js";
 import { state } from "../core/state.js";
 import { closeFind, openFind } from "../views/find.js";
 import { setZoom } from "../views/layout.js";
 import { closeTab, cycleTab, goToTabIndex, pickAndOpen, reopenClosedTab } from "./documents.js";
 import { reloadKeepingScroll } from "./live-reload.js";
 
+function refreshActive() {
+  if (!state.activeId) return;
+  void reloadKeepingScroll(undefined, { toast: true });
+}
+
 export function initShortcuts() {
+  $("btn-refresh")?.addEventListener("click", refreshActive);
+
   window.addEventListener("keydown", (ev) => {
     if (dialog.open) return;
     const mod = ev.ctrlKey || ev.metaKey;
     if (ev.key === "F5" || (mod && ev.key.toLowerCase() === "r")) {
       ev.preventDefault();
-      if (!ev.repeat) void reloadKeepingScroll(undefined, { toast: true });
+      if (!ev.repeat) refreshActive();
       return;
     }
     if (mod && ev.key.toLowerCase() === "o") {

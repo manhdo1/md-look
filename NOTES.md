@@ -218,8 +218,8 @@ Tauri 2 · WebView2 · pulldown-cmark · ammonia · notify · tauri-plugin-singl
 
 ### UX
 
-- Thanh `#tabbar` chỉ hiện khi **≥ 2** tab; 1 file → giao diện giữ như trước.
-- Tab active: nền surface + vạch vermilion 2px trên cạnh (One Signal Rule); không shadow.
+- `#tabbar` nằm trong `#titlebar` (một thanh duy nhất); chỉ hiện khi **≥ 2** tab; 1 file → `#doc-title` ở giữa.
+- Tab active: nền surface + hairline + vạch vermilion 2px dưới (One Signal Rule).
 - Trùng basename → hiện thêm thư mục cha (faint).
 - Đóng: nút × (active/hover), middle-click, Ctrl+W, Delete trên tablist.
 - Mở: Ctrl+O / Open / Recent / drop / argv / link `.md` nội bộ (tab mới hoặc focus tab đã mở).
@@ -290,7 +290,7 @@ Số đo trong Chromium headless (cùng engine với WebView2):
 - Outline toggle bằng cột grid (tránh `display:none` làm mất bề rộng `#reader`).
 - TOC scroll-spy (kể cả cuối trang).
 - CSP: `worker-src 'self' blob:` cho Mermaid.
-- Không logo trong titlebar HTML — chỉ icon hệ thống Windows.
+- Titlebar frameless (`decorations: false`): drag region + nút min/max/close trong HTML; không dùng chrome Windows mặc định.
 
 ---
 

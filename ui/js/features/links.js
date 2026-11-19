@@ -5,11 +5,11 @@ import { activeTab } from "../core/state.js";
 import { showError } from "../widgets/banner.js";
 import { openPath } from "./documents.js";
 
-function linkHref(a) {
+export function linkHref(a) {
   return a.getAttribute("href") || a.getAttributeNS(XLINK, "href") || "";
 }
 
-async function followLink(href) {
+export async function followLink(href) {
   if (href.startsWith("#")) {
     if (dialog.open) dialog.close();
     const el = document.getElementById(decodeURIComponent(href.slice(1)));

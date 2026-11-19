@@ -81,9 +81,8 @@ spacing:
   lg: "18px"
   xl: "24px"
   column-x: "56px"
-  measure: "46rem"
+  measure: "64rem"
   titlebar: "40px"
-  tabbar: "34px"
   statusbar: "30px"
   sidebar: "248px"
   rail-x: "22px"
@@ -156,7 +155,7 @@ components:
 
 A technical document is a line you travel. The outline is drawn as a vertical transit line with stations; the reader always knows which station they are at and how far along the line they have come. Every surface borrows from Swiss railway wayfinding: a cool near-white platform, deep blue-black ink, and a single signal vermilion that carries the line, the current station, focus, and progress. Nothing else is allowed to shout.
 
-The chrome is quiet and dense (a 40px title bar, a 30px status bar, 12–13px UI text) so the reading column can be calm and generous: 16px Be Vietnam Pro at a 1.72 line height on a ~72ch measure. Tables are set like timetables, diagrams open like maps on a dotted ground, and code sits in tinted, hairline-bordered cases. Light and dark are both first-class and share every token name; dark mode lifts the vermilion and cools the ground rather than inverting.
+The chrome is quiet and dense (a single 40px toolbar with outline, title-or-tabs, and actions; a 30px status bar; 12–13px UI text) so the reading column can be calm and generous: 16px Be Vietnam Pro at a 1.72 line height on a ~100ch measure. Tables are set like timetables, diagrams open like maps on a dotted ground, and code sits in tinted, hairline-bordered cases. Light and dark are both first-class and share every token name; dark mode lifts the vermilion and cools the ground rather than inverting.
 
 Rejected explicitly: the generic gray IDE sidebar with a flat link list, and the earlier MarkText look.
 
@@ -209,7 +208,7 @@ Cool, low-chroma neutrals tinted toward blue (hue ~258) with a single warm vermi
 - **Display** (700, 2.25em of the 16px base, 1.2, −0.025em): document h1; 1.9em under 760px. The empty-state title uses the same voice at 26px.
 - **Headline** (700, 1.5em, 1.3, −0.02em): h2 section openers, always on a hairline with a station ring.
 - **Title** (600, 1.22em, 1.3, −0.015em): h3; h4 at 1.06em, h5/h6 at 1em (h6 muted).
-- **Body** (400, 16px × zoom, 1.72): prose on a 46rem measure (~72ch); `strong` is 600 in ink-strong. Tables at 0.92em/1.55 with tabular figures.
+- **Body** (400, 16px × zoom, 1.72): prose on a 64rem measure (~100ch); `strong` is 600 in ink-strong. Tables at 0.92em/1.55 with tabular figures.
 - **UI** (400, 13px): window chrome base; find input 13.5px, outline sub-levels 12.5px.
 - **Label** (600, 12px): outline heading, code-block language (lowercase), Recent heading, status-bar counter. Sentence case, no tracking.
 - **Mono** (0.84em in blocks at 1.65; 0.86em inline): code, kbd inside articles, samp.
@@ -221,7 +220,7 @@ Cool, low-chroma neutrals tinted toward blue (hue ~258) with a single warm vermi
 
 ## Layout
 
-A three-part window: a 40px title bar (three-column grid, file name centred, directory trailing in faint 12px with left-ellipsis), an optional 34px tab strip (only when two or more files are open), a main grid of outline sidebar (default 248px, user-resizable via a zero-width separator with an 8px hit area) plus reader, and a 30px status bar. The reading column is centred at `46rem × zoom + 112px` with 44px top, 56px side, and 96px bottom padding; prose blocks share a 1.1em bottom rhythm, h2 opens with 2.2em above and 0.9em of padding above its text.
+A three-part window: a single frameless 40px toolbar (no OS title bar; drag region + minimize / maximize / close on the right; outline toggle; middle slot shows the file name/directory when one file is open, or an inline tab strip when two or more are open; refresh / open / find / theme before the window controls), a main grid of outline sidebar (default 248px, user-resizable via a zero-width separator with an 8px hit area) plus reader, and a 30px status bar. The reading column is centred at `64rem × zoom + 112px` with 44px top, 56px side, and 96px bottom padding; prose blocks share a 1.1em bottom rhythm, h2 opens with 2.2em above and 0.9em of padding above its text. Right-click uses a slim app menu (Copy, Open/Copy link, Close tab) instead of the WebView2 defaults.
 
 Diagrams may break the measure: they size to `min(100cqw − 48px, max(100%, 1120px))` and centre on the column using a container query on the scroller. Find floats top-right of the reader (12px/20px inset, max 380px). Under 760px the outline hides unless the user opens it, in which case it overlays the reader at `min(300px, 85vw)` with the floating shadow; article padding drops to 28px/22px/72px and the word count is hidden. Chrome spacing steps are 2, 6, 8, 14, 18, 24px.
 
@@ -263,8 +262,8 @@ Small, consistent corner radii that grow with the size of the object: 5px for ke
 
 ### Navigation
 - **Outline line diagram:** see Signature Component.
-- **Title bar:** platform ground, file name 600 ink-strong centred with faint directory; toggle on the left, Open / Find / Theme on the right. No logo.
-- **Tab strip:** hidden with a single open file. With two or more, a 34px platform-ground row under the title bar lists open files. Each tab is `flex: 0 1 200px` (min 96px), 12.5px/500 muted label with ellipsis; the active tab uses surface fill, 600 ink-strong type, and a 2px vermilion bar on its top edge (The One Signal Rule), painting over the strip's inset hairline so it meets the reader. No shadow on tabs. Duplicate basenames show the parent folder in 11.5px faint. Close is a 20px icon button visible on the active tab or on hover/focus; middle-click also closes. Horizontal overflow scrolls; the strip has no "+" control (Open / Ctrl+O opens files).
+- **Title bar:** frameless platform ground; file name 600 ink-strong optically centred (`left: 50%` + translate) with faint directory; outline toggle on the left; Refresh / Open / Find / Theme then 46px window caption buttons on the right. No logo.
+- **Tab strip:** same bar, middle slot (`#titlebar.tabs-open`); hidden with a single open file. With two or more files, tabs replace the centred path and the middle becomes a flex strip between the side clusters. Each tab is `flex: 0 1 200px` (min 96px), 12.5px/500 muted label with ellipsis; the active tab uses surface fill, 600 ink-strong type, and a 2px vermilion bar on its top edge (The One Signal Rule). No shadow on tabs. Duplicate basenames show the parent folder in 11.5px faint. Close is a 20px icon button visible on the active tab or on hover/focus; middle-click also closes. Horizontal overflow scrolls; the strip has no "+" control (Open / Ctrl+O opens files).
 - **Status bar:** platform ground, 12px muted text; left shows the vermilion-ink station counter and current section; right shows word count, percent read, and the zoom group.
 
 ### Outline Line Diagram (Signature Component)
@@ -289,7 +288,7 @@ A 168px line drawing of the route (a 3px vermilion stroke with two terminus ring
 - **Do** reserve signal vermilion for line, station, focus, selection, and progress (The One Signal Rule).
 - **Do** draw new navigational structure as stations on a line: hollow rings on a 3px track, sized by importance.
 - **Do** set tables as timetables: 2px ink head rule, hairline rows, no verticals, tabular figures.
-- **Do** keep chrome at 12–13px and the reading body at 16px × zoom on a 46rem measure.
+- **Do** keep chrome at 12–13px and the reading body at 16px × zoom on a 64rem measure.
 - **Do** use the floating shadow only for layers that sit above the document.
 - **Do** respect `prefers-reduced-motion`; all animation and transition is disabled under it.
 
