@@ -6,6 +6,7 @@ import { state } from "./core/state.js";
 import { initBanner, showError } from "./widgets/banner.js";
 import { initDiagrams } from "./content/diagrams.js";
 import { initDiagramDialog } from "./content/diagram-dialog.js";
+import { initMediaEmbeds } from "./content/media-embeds.js";
 import { initFind, refreshFind } from "./views/find.js";
 import {
   applyPrefs,
@@ -75,6 +76,7 @@ async function boot() {
 initRecent({ open: (path) => openPath(path) });
 initDiagrams({ onViewChange: refreshFind });
 initDiagramDialog();
+initMediaEmbeds();
 initLinks();
 initContextMenu();
 initWindowControls();

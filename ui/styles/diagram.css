@@ -152,6 +152,16 @@ html[data-theme="dark"] {
   max-width: none !important;
 }
 
+.dg-canvas img {
+  display: block;
+  max-width: none !important;
+  height: auto;
+  border-radius: 0;
+  cursor: default;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 .dg-canvas svg .node :is(rect, polygon, circle, ellipse, path),
 .dg-canvas svg .actor {
   stroke-width: 1.5px !important;

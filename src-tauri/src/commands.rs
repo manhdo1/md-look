@@ -29,6 +29,7 @@ fn open_path_inner(
     state.allow_asset_dir(app, &path)?;
 
     let doc = html::render_file(&path, force).map_err(|e| e.to_string())?;
+    state.allow_asset_files(app, &doc.local_assets)?;
     state.register_open(&path, force, current_fingerprint(&path));
     state.touch_recent(app, &path);
     Ok(doc)
@@ -57,6 +58,7 @@ pub async fn reload(
     state.allow_asset_dir(&app, &path)?;
 
     let doc = reload_with_retry(&path, force, stored_len).await?;
+    state.allow_asset_files(&app, &doc.local_assets)?;
     state.store_fingerprint(&path);
     Ok(doc)
 }

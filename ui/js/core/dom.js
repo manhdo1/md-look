@@ -32,6 +32,7 @@ export const dlgViewport = dialog.querySelector(".dg-viewport");
 export const dlgCanvas = dialog.querySelector(".dg-canvas");
 export const dlgZoom = dialog.querySelector(".dg-zoom");
 export const dlgTitle = dialog.querySelector(".dlg-title");
+export const dlgHint = dialog.querySelector(".dlg-hint");
 
 export function createArticleEl() {
   const el = document.createElement("article");

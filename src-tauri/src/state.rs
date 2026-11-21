@@ -22,6 +22,7 @@ pub struct AppState {
     pending_paths: Mutex<Vec<PathBuf>>,
     docs: Mutex<HashMap<PathBuf, DocEntry>>,
     asset_dirs: Mutex<HashSet<PathBuf>>,
+    asset_files: Mutex<HashSet<PathBuf>>,
     prefs: Mutex<Prefs>,
     watch: WatchHub,
 }
@@ -32,6 +33,7 @@ impl AppState {
             pending_paths: Mutex::new(Vec::new()),
             docs: Mutex::new(HashMap::new()),
             asset_dirs: Mutex::new(HashSet::new()),
+            asset_files: Mutex::new(HashSet::new()),
             prefs: Mutex::new(prefs),
             watch: WatchHub::new(),
         }
@@ -146,6 +148,38 @@ impl AppState {
             .allow_directory(&parent, true)
             .map_err(|e| format!("asset scope: {e}"))?;
         dirs.insert(parent);
+        Ok(())
+    }
+
+    /// Allow individual referenced asset files that sit outside already-scoped directories.
+    ///
+    /// Only the exact paths are allowed — never their parent directories.
+    pub(crate) fn allow_asset_files(
+        &self,
+        app: &AppHandle,
+        files: &[String],
+    ) -> Result<(), String> {
+        if files.is_empty() {
+            return Ok(());
+        }
+        let dirs = self.asset_dirs.lock().unwrap();
+        let mut allowed_files = self.asset_files.lock().unwrap();
+        for raw in files {
+            let path = PathBuf::from(raw);
+            if path.as_os_str().is_empty() {
+                continue;
+            }
+            if allowed_files.contains(&path) {
+                continue;
+            }
+            if dirs.iter().any(|dir| path.starts_with(dir)) {
+                continue;
+            }
+            app.asset_protocol_scope()
+                .allow_file(&path)
+                .map_err(|e| format!("asset scope: {e}"))?;
+            allowed_files.insert(path);
+        }
         Ok(())
     }
 

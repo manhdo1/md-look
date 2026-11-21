@@ -29,6 +29,9 @@ pub struct RenderedDocument {
     pub outline: Vec<OutlineEntry>,
     pub lossy_decode: bool,
     pub word_count: u32,
+    /// Local media/image paths referenced by this document (not sent to the UI).
+    #[serde(skip)]
+    pub local_assets: Vec<String>,
 }
 
 /// Count whitespace-separated tokens that contain at least one alphanumeric char.

@@ -20,6 +20,22 @@ Viewer Markdown **chỉ đọc** cho Windows (Tauri 2 + WebView2). File này li�
 - **Ảnh tương đối:** ảnh nằm cạnh file hiển thị bình thường, kể cả khi chuyển qua lại giữa các tab ở những thư mục khác nhau.
 - **Font:** Be Vietnam Pro cho chữ đọc, JetBrains Mono cho code. Cả hai đi kèm app, không cần mạng.
 
+## Media
+
+Cú pháp `![](đường-dẫn-hoặc-URL)` được phân loại theo đuôi file / host:
+
+- **Ảnh:** PNG, JPEG, GIF, SVG, WebP, và các đuôi ảnh khác → thẻ `<img>`. Click ảnh (không nằm trong link) mở lightbox pan/zoom toàn cửa sổ; SVG không có kích thước tự nhiên dùng khung mặc định. Ảnh trong thẻ `<a>` không mở lightbox.
+- **Video:** `.mp4`, `.webm`, `.mov` → `<video controls preload="none">` (không tải metadata đến khi bấm play; tua được với file local nhờ asset protocol).
+- **Audio:** `.mp3`, `.ogg`, `.wav`, `.m4a`, `.flac` → `<audio controls preload="none">`.
+- **YouTube / Vimeo:** URL `youtube.com`, `youtu.be`, `vimeo.com` → facade “Load video”; iframe chỉ tạo sau khi bấm (YouTube dùng `youtube-nocookie.com`).
+- **HTML thô:** `<img src="./...">` tương đối được rewrite sang asset URL; `width` / `height` được giữ. Thẻ `video` / `audio` / `iframe` được sanitize: chỉ iframe YouTube/Vimeo được phép (UI cũng chuyển chúng sang facade click-to-load); thuộc tính `autoplay` bị loại.
+
+**Giới hạn:**
+
+- Media remote và embed YouTube/Vimeo cần mạng.
+- Không autoplay; video/audio/embed chỉ tải khi người dùng chủ động phát / bấm Load.
+- Media tạm dừng khi rời tab.
+
 ## Code block
 
 - Tô màu cú pháp bằng highlight.js (chạy local), với nhãn ngôn ngữ ở góc. Chỉ tô khi block sắp cuộn tới; block không ghi ngôn ngữ (```` ``` ```` trơn) hiện chữ thường, không tự đoán ngôn ngữ.

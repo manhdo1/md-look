@@ -2,6 +2,7 @@
 
 mod events;
 mod links;
+mod media;
 mod sanitize;
 
 use std::path::{Path, PathBuf};
@@ -26,8 +27,9 @@ fn markdown_options() -> Options {
     options
 }
 
-fn escape_html(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
+/// Append `s` with HTML special characters escaped into `out` (no intermediate `String`).
+pub(super) fn push_escaped_html(out: &mut String, s: &str) {
+    out.reserve(s.len());
     for ch in s.chars() {
         match ch {
             '&' => out.push_str("&amp;"),
@@ -38,7 +40,6 @@ fn escape_html(s: &str) -> String {
             _ => out.push(ch),
         }
     }
-    out
 }
 
 /// Render Markdown source to sanitized HTML + outline with stable heading ids.
@@ -52,17 +53,21 @@ pub fn render_markdown(source: &str, path: &Path) -> RenderedDocument {
         .unwrap_or_else(|| PathBuf::from("."));
 
     let events: Vec<Event<'_>> = Parser::new_ext(body, markdown_options()).collect();
-    let (events, outline) = transform_events(events, &base_dir);
+    let (events, outline, mut local_assets) = transform_events(&events, &base_dir);
 
     let mut html = String::new();
     if let Some(fm) = front_matter {
         html.push_str("<pre><code class=\"language-yaml\">");
-        html.push_str(&escape_html(fm));
+        push_escaped_html(&mut html, fm);
         html.push_str("</code></pre>\n");
     }
     push_html(&mut html, events.into_iter());
 
-    let html = sanitize(&wrap_tables(&html));
+    let (html, sanitize_assets) = sanitize(&wrap_tables(&html), &base_dir);
+    local_assets.extend(sanitize_assets);
+    local_assets.sort_unstable();
+    local_assets.dedup();
+
     let title = title_from_path(path);
     let word_count = count_words(body);
 
@@ -73,6 +78,7 @@ pub fn render_markdown(source: &str, path: &Path) -> RenderedDocument {
         outline,
         lossy_decode: false,
         word_count,
+        local_assets,
     }
 }
 
@@ -126,6 +132,126 @@ mod tests {
             doc.html
         );
         assert!(doc.html.contains("pic"), "html={}", doc.html);
+        assert!(
+            doc.local_assets.iter().any(|p| p.replace('\\', "/").ends_with("pic.png")),
+            "local_assets={:?}",
+            doc.local_assets
+        );
+    }
+
+    #[test]
+    fn markdown_video_and_audio_become_media_tags() {
+        let video = render("![clip](./demo.mp4)\n");
+        assert!(
+            video.html.contains("<video"),
+            "expected video tag, html={}",
+            video.html
+        );
+        assert!(
+            video.html.contains("http://asset.localhost/"),
+            "expected asset URL, html={}",
+            video.html
+        );
+        assert!(video.html.contains("controls"));
+        assert!(
+            video.html.contains("preload=\"none\""),
+            "expected preload=none, html={}",
+            video.html
+        );
+
+        let audio = render("![track](./song.mp3)\n");
+        assert!(
+            audio.html.contains("<audio"),
+            "expected audio tag, html={}",
+            audio.html
+        );
+        assert!(audio.html.contains("http://asset.localhost/"));
+        assert!(audio.html.contains("preload=\"none\""));
+    }
+
+    #[test]
+    fn youtube_link_becomes_lazy_embed_facade() {
+        let doc = render("![yt](https://youtu.be/dQw4w9WgXcQ)\n");
+        assert!(
+            doc.html.contains("youtube-nocookie.com/embed/dQw4w9WgXcQ"),
+            "html={}",
+            doc.html
+        );
+        assert!(
+            doc.html.contains("media-embed--lazy"),
+            "expected lazy facade, html={}",
+            doc.html
+        );
+        assert!(
+            doc.html.contains("data-embed-src="),
+            "expected data-embed-src, html={}",
+            doc.html
+        );
+        assert!(
+            !doc.html.contains("<iframe"),
+            "iframe should load only after click, html={}",
+            doc.html
+        );
+    }
+
+    #[test]
+    fn raw_html_img_rewritten_and_keeps_width() {
+        let doc = render("<img src=\"./x.png\" width=\"200\" alt=\"x\">\n");
+        assert!(
+            doc.html.contains("http://asset.localhost/"),
+            "expected rewrite, html={}",
+            doc.html
+        );
+        assert!(
+            doc.html.contains("width=\"200\"") || doc.html.contains("width='200'"),
+            "html={}",
+            doc.html
+        );
+        assert!(
+            doc.local_assets.iter().any(|p| p.replace('\\', "/").ends_with("x.png")),
+            "local_assets={:?}",
+            doc.local_assets
+        );
+    }
+
+    #[test]
+    fn iframe_evil_src_and_autoplay_stripped() {
+        let evil = render("<iframe src=\"https://evil.com/x\"></iframe>\n");
+        assert!(
+            !evil.html.contains("evil.com"),
+            "evil src should be removed, html={}",
+            evil.html
+        );
+
+        let auto = render("<video src=\"https://example.com/a.mp4\" autoplay controls></video>\n");
+        assert!(
+            !auto.html.to_lowercase().contains("autoplay"),
+            "autoplay should be stripped, html={}",
+            auto.html
+        );
+        assert!(auto.html.contains("<video"));
+    }
+
+    #[test]
+    fn media_extension_case_insensitive_and_query_ignored() {
+        let video = render("![clip](./Demo.MP4?download=1)\n");
+        assert!(
+            video.html.contains("<video"),
+            "expected video for .MP4?query, html={}",
+            video.html
+        );
+        assert!(
+            video.html.contains("http://asset.localhost/"),
+            "expected asset URL, html={}",
+            video.html
+        );
+
+        let audio = render("![track](./Song.MP3#t=10)\n");
+        assert!(
+            audio.html.contains("<audio"),
+            "expected audio for .MP3#frag, html={}",
+            audio.html
+        );
     }
 
     #[test]

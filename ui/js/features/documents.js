@@ -16,6 +16,7 @@ import { basename, dirname, samePath } from "../core/paths.js";
 import { activeTab, findTabByPath, state, touchLru } from "../core/state.js";
 import { enhanceCodeBlocks, releaseCodeBlocks } from "../content/code-blocks.js";
 import { diagramsIdle, prepareDiagrams, releaseDiagrams } from "../content/diagrams.js";
+import { enhanceMediaEmbeds } from "../content/media-embeds.js";
 import { clearDeletedBanner, isMissingFileError, showDeletedBanner, showError } from "../widgets/banner.js";
 import { clearFind, refreshFind } from "../views/find.js";
 import { refreshScrollIndicators, renderOutline } from "../views/outline.js";
@@ -42,10 +43,23 @@ function attachArticle(tab) {
   }
 }
 
+/** Pause media so background tabs do not keep playing after the article leaves the DOM. */
+function pauseArticleMedia(el) {
+  if (!el) return;
+  for (const media of el.querySelectorAll("video, audio")) {
+    try {
+      media.pause();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
 /** Save the active tab's scroll position and take its article out of the preview. */
 function detachActiveArticle() {
   const tab = activeTab();
   if (tab?.el?.isConnected) {
+    pauseArticleMedia(tab.el);
     tab.scrollTop = previewScroll.scrollTop;
     tab.el.remove();
   }
@@ -103,6 +117,7 @@ function fillArticleFromDoc(tab, doc) {
   tab.stale = false;
   prepareDiagrams();
   enhanceCodeBlocks();
+  enhanceMediaEmbeds();
 }
 
 export async function activateTab(id, { restoreScroll = true } = {}) {

@@ -1,5 +1,6 @@
 //! Link and image destination rewriting (relative Markdown links, asset URLs).
 
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
@@ -53,9 +54,18 @@ pub(super) fn rewrite_link(base_dir: &Path, dest: &str) -> String {
     path_to_asset_url(&resolve_relative(base_dir, dest))
 }
 
-pub(super) fn rewrite_img(base_dir: &Path, dest: &str) -> String {
+/// Rewrite a media/image destination to an asset URL when local.
+///
+/// Returns the resolved local path (if any) alongside a borrowed or owned URL,
+/// so callers avoid a second filesystem resolve.
+pub(super) fn rewrite_img<'a>(
+    base_dir: &Path,
+    dest: &'a str,
+) -> (Option<PathBuf>, Cow<'a, str>) {
     if dest.is_empty() || is_external_or_special(dest) {
-        return dest.to_string();
+        return (None, Cow::Borrowed(dest));
     }
-    path_to_asset_url(&resolve_relative(base_dir, dest))
+    let path = crate::paths::lexical_normalize(&resolve_relative(base_dir, dest));
+    let url = path_to_asset_url(&path);
+    (Some(path), Cow::Owned(url))
 }

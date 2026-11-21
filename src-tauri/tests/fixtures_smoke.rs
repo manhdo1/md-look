@@ -32,3 +32,29 @@ fn huong_dan_outline_ids_in_html() {
     }
     assert!(doc.html.len() > 500);
 }
+
+#[test]
+fn media_sample_renders_media_tags() {
+    let path = fixture("media-sample.md");
+    let doc = html::render_file(&path, false).expect("render media-sample");
+    assert!(doc.html.contains("<video"), "expected video, html={}", doc.html);
+    assert!(doc.html.contains("<audio"), "expected audio, html={}", doc.html);
+    assert!(
+        doc.html.contains("youtube-nocookie.com/embed/")
+            && doc.html.contains("media-embed--lazy")
+            && doc.html.contains("data-embed-src="),
+        "expected lazy YouTube facade, html={}",
+        doc.html
+    );
+    assert!(
+        !doc.html.contains("<iframe"),
+        "iframe should not be in HTML until click, html={}",
+        doc.html
+    );
+    assert!(
+        doc.html.contains("width=\"200\"") || doc.html.contains("width='200'"),
+        "expected HTML img width kept, html={}",
+        doc.html
+    );
+    assert!(!doc.html.to_lowercase().contains("autoplay"));
+}

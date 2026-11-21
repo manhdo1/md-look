@@ -32,3 +32,6 @@ Thumbs.db
 
 # Impeccable design-session scratch (not app source)
 .impeccable/
+
+# Local Cursor agent skills (not for remote)
+.cursor/skills/
